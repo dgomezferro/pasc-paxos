@@ -1,0 +1,10 @@
+* Dependencies
+	- Pasc
+	- Netty
+	- ZooKeeper
+
+* Compilation
+
+	Paxos uses maven for its buildsystem. Compile with
+	
+	$ mvn install
