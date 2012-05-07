@@ -17,6 +17,9 @@
 package com.yahoo.pasc.paxos.statemachine;
 
 public interface StateMachine {
-	public byte[] execute (byte[] command);
-	public long digest();
+    public byte[] execute(byte[] command);
+
+    public void installDigest(long digest);
+
+    public long digest();
 }

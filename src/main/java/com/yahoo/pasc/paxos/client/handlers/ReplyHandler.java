@@ -31,7 +31,6 @@ import com.yahoo.pasc.paxos.messages.Reply;
 
 public class ReplyHandler implements MessageHandler<Reply, ClientState, Received.Descriptor> {
     
-    @SuppressWarnings("unused")
     private static final Logger LOG = LoggerFactory.getLogger(ReplyHandler.class);
 
     @Override
@@ -45,9 +44,17 @@ public class ReplyHandler implements MessageHandler<Reply, ClientState, Received
         if (matches(reply, state)) {
 //            LOG.debug("Reply {} matches with state", reply, state.getPendingRequest());
             BitSet acks = state.getAcks();
+            if (acks.cardinality() == 0) {
+                state.setValue(reply.getValue());
+                state.setFrom(reply.getServerId());
+            } else if (!Arrays.equals(state.getValue(), reply.getValue())) {
+                LOG.warn("State divergence. Conflicting response. \n Stored: {} \n From: {} \n Existing quorum: {} \n Received: {} \n From: {}", 
+                        new Object[] { state.getValue(), state.getFrom(), acks.cardinality(), reply.getValue(), reply.getServerId() });
+            }
             acks.set(reply.getServerId());
             if (acks.cardinality() >= state.getQuorum()) {
 //                LOG.debug("Reached quorum {}",state.getQuorum());
+                acks.clear();
                 descriptors = Arrays.asList(new Received.Descriptor(reply.getValue()));
             } else {
 //                LOG.debug("Still no quorum {} (we are at {})", state.getQuorum(), acks.cardinality());

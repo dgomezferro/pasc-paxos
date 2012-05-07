@@ -49,7 +49,7 @@ public class Learner extends PaxosHandler<Accepted> {
 //            LOG.warn("Rejecting accepted. firstId: {} iid: {}", firstInstanceId, iid);
             return null;
         }
-        // TODO check this
+
         long currentBallot = state.getBallotAcceptor();
         long ballot = message.getBallot();
         if (ballot < currentBallot) {
@@ -58,10 +58,15 @@ public class Learner extends PaxosHandler<Accepted> {
             return null;
         }
         List<PaxosDescriptor> descriptors = new ArrayList<PaxosDescriptor>();
+        int quorum = state.getQuorum();
+        int servers = state.getServers();
         
         IidAcceptorsCounts instance = state.getAcceptedElement(iid);
-        if (instance == null || instance.getIid() != iid) {
-            instance = new IidAcceptorsCounts(iid);
+        boolean uninitialized = instance == null || instance.getIid() != iid;
+        boolean learned = instance != null && instance.isAccepted() && instance.getCardinality(servers) >= quorum;
+        boolean old = instance != null && instance.getBallot() < currentBallot;
+        if (uninitialized || (!learned && old)) {
+            instance = new IidAcceptorsCounts(iid, message.getBallot());
             state.setAcceptedElement(iid, instance);
         }
         instance.setAcceptor(message.getSenderId());

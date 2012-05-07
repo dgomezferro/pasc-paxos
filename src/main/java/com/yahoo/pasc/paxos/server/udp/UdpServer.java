@@ -50,17 +50,14 @@ public class UdpServer implements ServerConnection {
     private Set<DatagramChannel> serverAddresses = new HashSet<DatagramChannel>();
     private Map<Integer, InetSocketAddress> clientAddresses = new HashMap<Integer, InetSocketAddress>(5);
     private DatagramChannel channel;
-//    private DatagramChannel sendChannel;
     private int port;
-//    private int threads;
 
     public UdpServer(PascRuntime<PaxosState> runtime, String servers[], String clients[], int port, int threads, int id) {
         this.channelFactory = new NioDatagramChannelFactory(Executors.newCachedThreadPool());
-        this.channelPipelineFactory = new PipelineFactory(runtime, null, this, threads, id, true);
+        this.channelPipelineFactory = new PipelineFactory(null, null, true);
         this.servers = servers;
         this.clients = clients;
         this.port = port;
-//        this.threads = threads;
     }
 
     public void run() throws IOException {
@@ -152,6 +149,5 @@ public class UdpServer implements ServerConnection {
     @Override
     public void close() throws IOException {
         // TODO Auto-generated method stub
-        
     }
 }

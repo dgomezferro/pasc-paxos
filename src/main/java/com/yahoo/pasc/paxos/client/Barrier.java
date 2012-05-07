@@ -17,12 +17,12 @@
 package com.yahoo.pasc.paxos.client;
 
 import java.io.IOException;
-import java.util.Random;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
@@ -43,8 +43,8 @@ public class Barrier implements Watcher {
      * @throws IOException
      * @throws KeeperException
      */
-    Barrier(String address, String root, String name, int size) throws KeeperException, IOException {
-        zk = new ZooKeeper(address, 5000, this);
+    Barrier(ZooKeeper zk, String root, String name, int size) throws KeeperException, IOException {
+        this.zk = zk;
         this.mutex = new Object();
         this.root = root;
         this.size = size;
@@ -124,55 +124,16 @@ public class Barrier implements Watcher {
     }
 
     @Override
-    public void process(org.apache.zookeeper.WatchedEvent arg0) {
-        synchronized (mutex) {
-            mutex.notify();
+    public void process(org.apache.zookeeper.WatchedEvent event) {
+        if (event.getType().equals(EventType.NodeChildrenChanged) ||
+                event.getType().equals(EventType.NodeCreated)) {
+            synchronized (mutex) {
+                mutex.notify();
+            }
         }
     }
     
     void close() throws InterruptedException {
         zk.close();
     }
-}
-
-class Worker implements Runnable {
-    private static Random rand = new Random();
-    private String name;
-    private int size;
-
-    public Worker(String name, int size) {
-        this.name = name;
-        this.size = size;
-    }
-
-    @Override
-    public void run() {
-        try {
-            Thread.currentThread().setName("Worker " + name);
-            doWork();
-        } catch (KeeperException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
-
-    private void doWork() throws KeeperException, IOException, InterruptedException {
-        Barrier b = new Barrier("localhost:3000", "/test", name, size);
-        Thread.sleep(rand.nextInt(10000));
-        b.enter();
-        System.out.println("Worker " + name + " starting work.");
-        Thread.sleep(rand.nextInt(11000));
-        b.leave();
-        System.out.println("Worker " + name + " finished work.");
-    }
-}
-
-enum State {
-    ENTERING, CLOSED, LEAVING
 }

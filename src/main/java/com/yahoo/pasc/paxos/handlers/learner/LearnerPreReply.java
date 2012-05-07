@@ -61,9 +61,9 @@ public class LearnerPreReply extends PaxosHandler<PreReply> {
                 descriptors.add(new Digest.Descriptor(iid / checkpointPeriod, digest));
             }
 
-            DigestHandler.storeDigest(iid / checkpointPeriod, digest, true, state);
+            DigestHandler.storeDigest(state.getServerId(), iid / checkpointPeriod, digest, state);
         }
-        if (!state.getIsLeader()) {
+        if (state.getLeaderReplies() || !state.getIsLeader()) {
 //            LOG.trace("Adding reply");
             if (descriptors == null)
                 descriptors = new ArrayList<PaxosDescriptor>(1);

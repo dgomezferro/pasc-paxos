@@ -28,9 +28,11 @@ public class ClientState implements ProcessState {
     int connected;
     int inlineThreshold;
 
-    long timestamp = 0;
+    long timestamp = -1;
     Request pendingRequest;
     BitSet acks = new BitSet();
+    byte[] value;
+    private int from;
 
     public ClientState(int clientId, int servers, int quorum, int inlineThreshold) {
         this.clientId = clientId;
@@ -101,6 +103,22 @@ public class ClientState implements ProcessState {
 
     public void setInlineThreshold(int inlineThreshold) {
         this.inlineThreshold = inlineThreshold;
+    }
+
+    public byte[] getValue() {
+        return value;
+    }
+
+    public void setValue(byte[] value) {
+        this.value = value;
+    }
+
+    public void setFrom(int serverId) {
+        this.from = serverId;
+    }
+
+    public int getFrom() {
+        return from;
     }
 
 }

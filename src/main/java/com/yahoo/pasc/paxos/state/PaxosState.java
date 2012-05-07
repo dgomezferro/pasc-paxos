@@ -18,17 +18,22 @@ package com.yahoo.pasc.paxos.state;
 
 import java.util.Arrays;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.yahoo.pasc.ProcessState;
-import com.yahoo.pasc.paxos.messages.Request;
 
 public class PaxosState implements ProcessState {
+
+    @SuppressWarnings("unused")
+    private static final Logger LOG = LoggerFactory.getLogger(PaxosState.class);
 
     private static final int MAX_CLIENTS = 4096;
     // this field is just for testing. will be replaced when the learner will
     // use the state machine
     public final int REPLY_SIZE = 1;
 
-    public PaxosState(int maxInstances, int bufferSize, int serverId, boolean isLeader, int quorum, int digestQuorum,
+    public PaxosState(int maxInstances, int bufferSize, int serverId, int quorum, int digestQuorum,
             int servers, int congestionWindow, int maxDigests) {
         this.maxInstances = maxInstances;
         this.instances = new InstanceRecord[maxInstances];
@@ -36,22 +41,17 @@ public class PaxosState implements ProcessState {
         this.requests = new IidRequest[MAX_CLIENTS][];
         this.bufferSize = bufferSize;
         this.serverId = serverId;
-        this.isLeader = isLeader;
         this.quorum = quorum;
         this.digestQuorum = digestQuorum;
         this.servers = servers;
         this.congestionWindow = congestionWindow;
-        if (isLeader) {
-            this.ballotProposer = serverId;
-            this.instances[0] = new InstanceRecord(0, this.ballotProposer, bufferSize);
-        }
         this.maxDigests = maxDigests;
         this.digestStore = new DigestStore[maxDigests];
-        this.maxForgotten = -1;
         this.maxExecuted = -1;
         this.replyCache = new TimestampReply[MAX_CLIENTS];
         inProgress = new long[MAX_CLIENTS];
         Arrays.fill(inProgress, -1);
+        prepared = new PreparedMessages(servers);
     }
     
     // Digests
@@ -78,6 +78,7 @@ public class PaxosState implements ProcessState {
     int ballotProposer;
     /** Size under which request are forwarded through the leader */
     int requestThreshold;
+    PreparedMessages prepared;
 
     /*
      * Proposer & Acceptor
@@ -97,30 +98,13 @@ public class PaxosState implements ProcessState {
      * Learner
      */
     IidAcceptorsCounts[] accepted;
-//    boolean[] learned;
     long maxExecuted;
-    long maxForgotten;
 
     // Generate messages
-//    int[] iidsToReply;
     TimestampReply[] replyCache;
     long[] inProgress;
-    long inProgressElement;
-
-    // Make framework happy
-    // ------------------------------
-    Request cacheElement;
-    Request pendingElement;
-
-    InstanceRecord instancesElement;
-    IidAcceptorsCounts acceptedElement;
-    byte[] proposedElement;
-    IidRequest receivedRequest;
-    int instanceBufferSize;
-    ClientTimestamp clientTimestampBufferElem;
-    DigestStore digestStoreElement;
-    TimestampReply replyCacheElement;
-
+    boolean leaderReplies;
+    boolean completedPhaseOne;
 
     // ------------------------------
 
@@ -164,7 +148,6 @@ public class PaxosState implements ProcessState {
         this.accepted = accepted;
     }
 
-    long replyCacheTimestampElement;
     public long getReplyCacheTimestampElement(int clientId){
         TimestampReply reply = replyCache[clientId];
         if (reply != null)
@@ -176,19 +159,19 @@ public class PaxosState implements ProcessState {
     }
     
     public TimestampReply getReplyCacheElement(int clientId){
-    	return replyCache[clientId];
+        return replyCache[clientId];
     }
     
     public void setReplyCacheElement(int clientId, TimestampReply newVal){
-    	replyCache[clientId] = newVal;
+        replyCache[clientId] = newVal;
     }
     
     public long getInProgressElement(int clientId){
-    	return inProgress[clientId];
+        return inProgress[clientId];
     }
     
     public void setInProgressElement(int clientId, long timestamp){
-    	inProgress[clientId] = timestamp;
+        inProgress[clientId] = timestamp;
     }
 
     public void setClientTimestampBufferElem(IndexIid index, ClientTimestamp ct) {
@@ -211,12 +194,24 @@ public class PaxosState implements ProcessState {
         return instances[(int) (iid % maxInstances)];
     }
 
+    public long getInstancesIid (long iid) {
+        return instances[(int) (iid % maxInstances)].getIid();
+    }
+
     public void setInstancesElement(long iid, InstanceRecord instancesElement) {
         this.instances[(int) (iid % maxInstances)] = instancesElement;
     }
 
+    public int getInstancesBallot(long iid){
+        return instances[(int) (iid % maxInstances)].getBallot();
+    }
+
     public IidAcceptorsCounts getAcceptedElement(long iid) {
         return accepted[(int) (iid % maxInstances)];
+    }
+
+    public boolean getIsAcceptedElement(long iid) {
+        return accepted[(int) (iid % maxInstances)].isAccepted();
     }
 
     public void setAcceptedElement(long iid, IidAcceptorsCounts acceptedElement) {
@@ -231,7 +226,6 @@ public class PaxosState implements ProcessState {
         this.currIid = firstInstancesElement;
     }
 
-    long receivedRequestIid;
     public long getReceivedRequestIid(ClientTimestamp element) {
         IidRequest[] clientArray = requests[element.clientId];
         if (clientArray == null || clientArray.length == 0) {
@@ -383,14 +377,6 @@ public class PaxosState implements ProcessState {
         this.maxExecuted = maxExecuted;
     }
 
-    public long getMaxForgotten() {
-        return maxForgotten;
-    }
-
-    public void setMaxForgotten(long maxForgotten) {
-        this.maxForgotten = maxForgotten;
-    }
-
     public long getFirstDigestId() {
         return firstDigestId;
     }
@@ -423,4 +409,27 @@ public class PaxosState implements ProcessState {
         this.digestQuorum = digestQuorum;
     }
 
+    public boolean getLeaderReplies() {
+        return leaderReplies;
+    }
+
+    public void setLeaderReplies(boolean leaderReplies) {
+        this.leaderReplies = leaderReplies;
+    }
+
+    public PreparedMessages getPrepared() {
+        return prepared;
+    }
+
+    public void setPrepared(PreparedMessages prepared) {
+        this.prepared = prepared;
+    }
+
+    public void setCompletedPhaseOne(boolean completedPhaseOne) {
+        this.completedPhaseOne = completedPhaseOne;
+    }
+
+    public boolean getCompletedPhaseOne() {
+        return this.completedPhaseOne;
+    }
 }

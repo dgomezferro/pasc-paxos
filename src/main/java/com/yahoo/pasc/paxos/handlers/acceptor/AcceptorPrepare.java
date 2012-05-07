@@ -16,17 +16,25 @@
 
 package com.yahoo.pasc.paxos.handlers.acceptor;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+
+import java.util.ArrayList;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.paxos.handlers.PaxosHandler;
 import com.yahoo.pasc.paxos.messages.PaxosDescriptor;
 import com.yahoo.pasc.paxos.messages.Prepare;
+import com.yahoo.pasc.paxos.messages.Prepared;
+import com.yahoo.pasc.paxos.state.InstanceRecord;
 import com.yahoo.pasc.paxos.state.PaxosState;
 
 public class AcceptorPrepare extends PaxosHandler<Prepare> {
 
-    // private static final Log LOG = LogFactory.getLog(AcceptorPrepare.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AcceptorPrepare.class);
 
     @Override
     public boolean guardPredicate(Message receivedMessage) {
@@ -35,7 +43,65 @@ public class AcceptorPrepare extends PaxosHandler<Prepare> {
 
     @Override
     public List<PaxosDescriptor> processMessage(Prepare message, PaxosState state) {
-        return null;
+
+        // check that the leader is newer than the last one by looking at the ballot number
+        int currentBallot = state.getBallotAcceptor();
+        if (message.getBallot() <= currentBallot) {
+            LOG.trace("Rejecting propose. msg ballot: {} current ballot: {}", message.getBallot(), currentBallot);
+            return null;
+        }
+        state.setBallotAcceptor(message.getBallot());
+
+        long checkpointPeriod = state.getCheckpointPeriod();
+        long minIid = message.getMaxExecutedIid();
+        long maxExecuted = state.getMaxExecuted();
+        long maxForgotten = (state.getFirstDigestId() - 1) * checkpointPeriod;
+
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Processing propose. minIid {} maxExecuted {} maxForgotten {}", 
+                    new Object[] { minIid, maxExecuted, maxForgotten });
+        }
+
+        List<PaxosDescriptor> descriptors = new ArrayList<PaxosDescriptor>(1);
+
+        // send learned (executed) requests
+        LongArrayList learnedReqs = new LongArrayList();
+        long currIid = Math.max(minIid + 1, maxForgotten + 1);
+        while (currIid <= maxExecuted) {
+            // checks that the iid is correct and that the instance is "fully" accepted, i.e., it has all requests
+            if (state.getInstancesIid(currIid) == currIid && state.getIsAcceptedElement(currIid)) {
+                LOG.trace("Adding learned req with iid {}", currIid);
+                learnedReqs.add(currIid);
+            } else {
+                LOG.trace("Not adding learned for iid {}. Stored iid {} learned {} ",
+                        new Object[] { currIid, state.getInstancesIid(currIid), state.getIsAcceptedElement(currIid) });
+            }
+            currIid++;
+        }
+
+        // send accepted requests
+        LongArrayList acceptedReqs = new LongArrayList();
+        while (currIid < minIid + state.getMaxInstances()) {
+            InstanceRecord instance = state.getInstancesElement(currIid);
+            if (instance != null && instance.getIid() == currIid) {
+                LOG.trace("Adding accepted instance with iid {}", currIid);
+                acceptedReqs.add(currIid);
+            } else {
+                LOG.trace("Not adding accepted instance for iid {} instance {}", currIid, instance);
+            }
+            currIid++;
+        }
+
+        // send the current checkpoint digest - the state machine will fetch the checkpoint independently
+        if (minIid < maxForgotten) {
+            descriptors.add(new Prepared.Descriptor(message.getBallot(), message.getSenderId(), acceptedReqs,
+                    learnedReqs, maxForgotten, state.getQuorum()));
+        } else {
+            descriptors.add(new Prepared.Descriptor(message.getBallot(), message.getSenderId(), acceptedReqs,
+                    learnedReqs));
+        }
+
+        return descriptors;
     }
 
 }

@@ -38,39 +38,39 @@ public class DigestHandler extends PaxosHandler<Digest> {
 
     @Override
     public List<PaxosDescriptor> processMessage(Digest digest, PaxosState state) {
-        
-//        LOG.trace("Received digest {}.", digest);
-        
-        storeDigest(digest.getDigestId(), digest.getDigest(), false, state);
+        storeDigest(digest.getSenderId(), digest.getDigestId(), digest.getDigest(), state);
         return null;
     }
 
-    public static void storeDigest(long digestId, long digest, boolean mine, PaxosState state) {
+    public static void storeDigest(int senderId, long digestId, long digest, PaxosState state) {
         long firstDigestId = state.getFirstDigestId();
         int maxDigests = state.getMaxDigests();
-        
-//        LOG.trace("Storing digest {} id {} mine {}.", new Object[] {digest, digestId, mine});
-        
+
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Storing digest {} id {} sender {}.", new Object[] { digest, digestId, senderId });
+        }
+
         if (digestId < firstDigestId) {
-//            LOG.trace("Ignoring digest for id {}, first digest: {}.", digestId, firstDigestId);
+            LOG.trace("Ignoring digest for id {}, first digest: {}.", digestId, firstDigestId);
             // ignore it
             return;
         } else if (firstDigestId + maxDigests <= digestId) {
             LOG.error("We reached a checkpoint but have no space for its digest {}.", digest);
             return;
         }
-        
+
         DigestStore store = state.getDigestStoreElement(digestId);
+
         int servers = state.getServers();
         if (store == null || store.getDigestId() != digestId) {
-//            LOG.trace("New store. (Old one: {})", store);
+            // uninitialized or old DigestStore
             store = new DigestStore(digestId, servers);
             state.setDigestStoreElement(digestId, store);
         }
-        if (mine) {
+        if (senderId == state.getServerId()) {
             store.addMine(digest);
         } else {
-            store.addRemote(digest);
+            store.addRemote(senderId, digest);
         }
 
         raiseFirstDigest(state);
@@ -82,10 +82,9 @@ public class DigestHandler extends PaxosHandler<Digest> {
         int quorum = state.getDigestQuorum();
         long firstDigestId = state.getFirstDigestId();
         DigestStore store = state.getDigestStoreElement(firstDigestId);
-        while (store.matches(quorum)) {
-//            LOG.trace("Matching digest {} ", firstDigestId);
+
+        while (store.matches(quorum) || store.isRecovered()) {
             firstInstanceId = firstDigestId * checkpointPeriod + 1;
-//            LOG.trace("Setting first instance id to {}", firstInstanceId);
             firstDigestId++;
 
             store = state.getDigestStoreElement(firstDigestId);
