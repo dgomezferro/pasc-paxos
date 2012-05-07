@@ -129,7 +129,11 @@ public class Execute extends PaxosMessage implements Serializable, CloneableDeep
 
     @Override
     public String toString() {
-        return String.format("{Execute %s sent from %d at %d %s (iid %l)}", Arrays.toString(request), clientId, timestamp,
+        String requestStr = Arrays.toString(request);
+        if (requestStr.length() > 20) {
+            requestStr = requestStr.substring(0, 20) + " ... ]";
+        }
+        return String.format("{Execute %s sent from %d at %d %s (iid %d)}", requestStr, clientId, timestamp,
                 super.toString(), iid);
     }
 

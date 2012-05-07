@@ -22,65 +22,62 @@ import java.util.List;
 
 import com.yahoo.pasc.CloneableDeep;
 import com.yahoo.pasc.EqualsDeep;
+import com.yahoo.pasc.Message;
 import com.yahoo.pasc.paxos.state.PaxosState;
 
-public class Accepted extends PaxosMessage implements Serializable, CloneableDeep<Accepted>, EqualsDeep<Accepted>{
+public class DigestToSM extends PaxosMessage implements Serializable, CloneableDeep<DigestToSM>, EqualsDeep<DigestToSM>{
 
-    private static final long serialVersionUID = 4929988247614939786L;
+    private static final long serialVersionUID = -3781061394615967506L;
     
     public static class Descriptor implements PaxosDescriptor, EqualsDeep<Descriptor> {
-        
-        long iid;
 
-        public Descriptor(long iid) {
-            this.iid = iid;
+        private long digest;
+        
+        public Descriptor(long digest) {
+            this.digest = digest;
         }
         
         @Override
         public List<PaxosMessage> buildMessages(PaxosState state) {
-            return Arrays.<PaxosMessage>asList(new Accepted(state.getServerId(), state.getBallotAcceptor(), iid));
+            return Arrays.<PaxosMessage>asList(new DigestToSM(digest));
         }
 
         @Override
         public boolean equalsDeep(Descriptor other) {
-            return this.iid == other.iid;
+            return this.digest == other.digest;
         }
         
     }
 
-    int senderId;
-    int ballot;
-    long iid;
+    long digest;
 
-    public Accepted(int senderId, int ballot, long iid) {
-        this.senderId = senderId;
-        this.ballot = ballot;
-        this.iid = iid;
+    public DigestToSM(long digest) {
+        this.digest = digest;
     }
 
-    public int getSenderId() {
-        return senderId;
-    }
-
-    public int getBallot() {
-        return ballot;
-    }
-
-    public long getIid() {
-        return iid;
+    public long getDigest() {
+        return digest;
     }
 
     @Override
     public String toString() {
-        return String.format("{Accepted iid %d sent from %d with ballot %d %s}", iid, senderId, ballot, super.toString());  
-    }
-
-    public Accepted cloneDeep(){
-    	return new Accepted(this.senderId, this.ballot, this.iid);
+        return String.format("{Digest %s sent to state machine}", digest);  
     }
     
-    public boolean equalsDeep(Accepted other){
-    	return (this.senderId == other.senderId || this.ballot == other.ballot || this.iid == other.iid);
+    public DigestToSM cloneDeep(){
+    	return new DigestToSM(digest); 
     }
- 
+    
+    public boolean equalsDeep (DigestToSM other){
+    	return other != null && this.digest == other.digest;
+    }
+
+    @Override
+    protected boolean verify() {
+        return true;
+    }
+
+    @Override
+    public void storeReplica(Message m) {
+    }
 }

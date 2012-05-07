@@ -18,31 +18,7 @@ package com.yahoo.pasc.paxos.messages;
 
 public enum MessageType {
 
-    REQUEST, INLINEREQ, REPLY, ACCEPT, ACCEPTED, DIGEST, EXECUTE, PREREPLY, HELLO;
-    
-    public static PaxosMessage getMessage(MessageType m) {
-        switch (m) {
-        case REQUEST:
-            return new Request();
-        case INLINEREQ:
-            return new InlineRequest();
-        case REPLY:
-            return new Reply();
-        case ACCEPT:
-            return new Accept();
-        case ACCEPTED:
-            return new Accepted();
-        case DIGEST:
-            return new Digest();
-        case EXECUTE:
-            return new Execute();
-        case PREREPLY:
-            return new PreReply();
-        case HELLO:
-            return new Hello();
-        }
-        throw new IllegalArgumentException("Unknown message type: " + m);
-    }
+    REQUEST, INLINEREQ, REPLY, ACCEPT, ACCEPTED, DIGEST, EXECUTE, PREREPLY, HELLO, PREPARE, PREPARED, LEAD_CHANGE;
     
     public static MessageType getMessageType(PaxosMessage m) {
         if (m instanceof InlineRequest)
@@ -63,6 +39,12 @@ public enum MessageType {
             return PREREPLY;
         if (m instanceof Hello)
             return HELLO;
+        if (m instanceof Prepare)
+            return PREPARE;
+        if (m instanceof Prepared)
+            return PREPARED;
+        if (m instanceof LeadershipChange)
+            return LEAD_CHANGE;
         throw new IllegalArgumentException("Unknown message type: " + m);
     }
 }

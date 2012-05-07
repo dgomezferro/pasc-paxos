@@ -28,6 +28,7 @@ import org.apache.commons.cli.PosixParser;
 
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.handlers.DigestHandler;
+import com.yahoo.pasc.paxos.handlers.LeadershipHandler;
 import com.yahoo.pasc.paxos.handlers.acceptor.AcceptorAccept;
 import com.yahoo.pasc.paxos.handlers.acceptor.AcceptorPrepare;
 import com.yahoo.pasc.paxos.handlers.learner.Learner;
@@ -38,6 +39,7 @@ import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
+import com.yahoo.pasc.paxos.messages.LeadershipChange;
 import com.yahoo.pasc.paxos.messages.PreReply;
 import com.yahoo.pasc.paxos.messages.Prepare;
 import com.yahoo.pasc.paxos.messages.Prepared;
@@ -70,7 +72,6 @@ public class PaxosServer {
             Option maxInstances = new Option("m", true, "max number of instances");
             Option anm          = new Option("a", false, "protection against ANM faults");
             Option udp          = new Option("u", false, "use UDP");
-            Option leader       = new Option("l", false, "is leader");
             Option cWindow      = new Option("w", true, "congestion window");
             Option threads      = new Option("t", true, "number of threads");
             Option digests      = new Option("d", true, "max digests");
@@ -78,12 +79,14 @@ public class PaxosServer {
             Option inlineThresh = new Option("n", true, "threshold for sending requests iNline with accepts ");
             Option twoStages    = new Option("2", false, "2 stages");
             Option digestQuorum = new Option("q", true, "digest quorum");
+            Option leaderReplies= new Option("r", false, "leader replies");
+            Option zookeeper    = new Option("z", true, "zookeeper connection string");
             
             options = new Options();
             options.addOption(id).addOption(port).addOption(buffer).addOption(clients).addOption(servers)
-                    .addOption(threads).addOption(anm).addOption(udp).addOption(maxInstances).addOption(leader)
+                    .addOption(threads).addOption(anm).addOption(udp).addOption(maxInstances) //.addOption(leader)
                     .addOption(cWindow).addOption(digests).addOption(ckPeriod).addOption(inlineThresh)
-                    .addOption(twoStages).addOption(digestQuorum);
+                    .addOption(twoStages).addOption(digestQuorum).addOption(leaderReplies).addOption(zookeeper);
         }
         
         CommandLine line = null;
@@ -92,6 +95,7 @@ public class PaxosServer {
             
             String serverAddresses[] = line.hasOption('s') ? line.getOptionValue('s').split(",") : new String[] { "10.78.36.104:20548", "10.78.36.104:20748" };
             String clientAddresses[] = line.hasOption('c') ? line.getOptionValue('c').split(",") : new String[] { "localhost:9000" };
+            String zookeeper         = line.hasOption('z') ? line.getOptionValue('z') : "localhost:2181";
             int serverId             = line.hasOption('i') ? Integer.parseInt(line.getOptionValue('i')) : 0;
             int batchSize            = line.hasOption('b') ? Integer.parseInt(line.getOptionValue('b')) : 1;
             int port                 = line.hasOption('p') ? Integer.parseInt(line.getOptionValue('p')) : 20548;
@@ -101,7 +105,6 @@ public class PaxosServer {
             int inlineThreshold      = line.hasOption('n') ? Integer.parseInt(line.getOptionValue('n')) : 10;
             boolean protection       = line.hasOption('a');
             boolean udp              = line.hasOption('u');
-            boolean leader           = line.hasOption('l');
             boolean twoStages        = line.hasOption('2');
             int quorum               = serverAddresses.length / 2 + 1;
             int digestQuorum         = line.hasOption('q') ? Integer.parseInt(line.getOptionValue('q')) : quorum;
@@ -112,9 +115,10 @@ public class PaxosServer {
                 throw new RuntimeException("BatchSize must be greater than 0");
             }
             
-            PaxosState state = new PaxosState(maxInstances, batchSize, serverId, leader, quorum, digestQuorum,
+            PaxosState state = new PaxosState(maxInstances, batchSize, serverId, quorum, digestQuorum,
                     serverAddresses.length, congestionWindow, digests);
             if (line.hasOption('k')) state.setCheckpointPeriod(Integer.parseInt(line.getOptionValue('k')));
+            if (line.hasOption('r')) state.setLeaderReplies(true);
             state.setRequestThreshold(inlineThreshold);
 
             if (!protection) {
@@ -131,11 +135,12 @@ public class PaxosServer {
             runtime.addHandler(InlineRequest.class, new ProposerRequest());
             runtime.addHandler(Digest.class, new DigestHandler());
             runtime.addHandler(PreReply.class, new LearnerPreReply());
+            runtime.addHandler(LeadershipChange.class, new LeadershipHandler());
 
             if (udp) {
                 new UdpServer(runtime, serverAddresses, clientAddresses, port, threads, serverId).run();
             } else {
-                new TcpServer(runtime, new EmptyStateMachine(), serverAddresses, clientAddresses, port, threads, serverId, twoStages).run();
+                new TcpServer(runtime, new EmptyStateMachine(), zookeeper, serverAddresses, clientAddresses, port, threads, serverId, twoStages).run();
             }
         } catch (Exception e) {
             HelpFormatter formatter = new HelpFormatter();

@@ -138,8 +138,12 @@ public class Accept extends PaxosMessage implements Serializable, CloneableDeep<
 
     @Override
     public String toString() {
+        String acceptStr = Arrays.toString(instance.getClientTimestamps());
+        if (acceptStr.length() > 20) {
+            acceptStr = acceptStr.substring(0, 20) + " ... ]";
+        }
         return String.format("{Accept %s sent from %d with ballot %d for iid %d with requests %s {%s}}",
-                Arrays.toString(instance.getClientTimestamps()), senderId, instance.getBallot(), instance.getIid(), 
+                acceptStr, senderId, instance.getBallot(), instance.getIid(), 
                 Arrays.toString(requests), super.toString());
     }
 

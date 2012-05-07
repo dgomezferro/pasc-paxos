@@ -26,17 +26,16 @@ public final class IidAcceptorsCounts implements Serializable, EqualsDeep<IidAcc
     private static final long serialVersionUID = 7587497611602103466L;
 
     long iid;
+    int ballot;
     int acceptors;
-    boolean accepted;
-    int receivedRequests;
-    int totalRequests;
+    int receivedRequests;	// actual number of different requests received so far
+    int totalRequests;		// number of requests with the same instance id (in the same batch from the leader)
+    boolean accepted;		// true if receivedRequests == totalRequests
 
-    public IidAcceptorsCounts() {
-    }
-
-    public IidAcceptorsCounts(long iid) {
+    public IidAcceptorsCounts(long iid, int ballot) {
         this.acceptors = 0;
         this.iid = iid;
+        this.ballot = ballot;
     }
 
     public long getIid() {
@@ -91,10 +90,17 @@ public final class IidAcceptorsCounts implements Serializable, EqualsDeep<IidAcc
     public void setTotalRequests(int totalRequests) {
         this.totalRequests = totalRequests;
     }
-    
+
+    public int getBallot() {
+        return ballot;
+    }
+
+    public void setBallot(int ballot) {
+        this.ballot = ballot;
+    }
+
     public IidAcceptorsCounts cloneDeep() {
-        IidAcceptorsCounts res = new IidAcceptorsCounts();
-        res.iid = this.iid;
+        IidAcceptorsCounts res = new IidAcceptorsCounts(this.iid, this.ballot);
         res.acceptors = this.acceptors;
         res.accepted = this.accepted;
         res.receivedRequests = this.receivedRequests;
@@ -103,7 +109,8 @@ public final class IidAcceptorsCounts implements Serializable, EqualsDeep<IidAcc
     }
 
     public boolean equalsDeep(IidAcceptorsCounts other) {
-        return (this.iid == other.iid) && (this.acceptors == other.acceptors) && (this.accepted == other.accepted)
-                && (this.receivedRequests == other.receivedRequests) && (this.totalRequests == other.totalRequests);
+        return (this.iid == other.iid) && (this.ballot == other.ballot) && (this.acceptors == other.acceptors)
+                && (this.accepted == other.accepted) && (this.receivedRequests == other.receivedRequests)
+                && (this.totalRequests == other.totalRequests);
     }
 }

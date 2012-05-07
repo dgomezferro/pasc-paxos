@@ -19,6 +19,7 @@ package com.yahoo.pasc.paxos.messages.serialization;
 import static org.jboss.netty.channel.Channels.write;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
 import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelFuture;
@@ -33,13 +34,15 @@ import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
+import com.yahoo.pasc.paxos.messages.Prepare;
+import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
 import com.yahoo.pasc.paxos.messages.Request;
 import com.yahoo.pasc.paxos.state.ClientTimestamp;
+import com.yahoo.pasc.paxos.state.InstanceRecord;
 
 public class ManualEncoder implements ChannelDownstreamHandler {
 
-    @SuppressWarnings("unused")
     private static final Logger LOG = LoggerFactory.getLogger(ManualEncoder.class);
 
     public static int[] messages = new int[30];
@@ -58,23 +61,16 @@ public class ManualEncoder implements ChannelDownstreamHandler {
 
         MessageEvent e = (MessageEvent) evt;
         PaxosMessage originalMessage = (PaxosMessage) e.getMessage();
-//        LOG.trace("Encoding {} ", originalMessage);
-//        MessageType type = MessageType.getMessageType(originalMessage);
-//        messages[type.ordinal()]++;
-//        nMessages++;
-//        System.out.println("Encoding message " + originalMessage);
-//        if (nMessages % 10000 == 0) {
-//            MessageType values[] = MessageType.values();
-//            StringBuilder sb = new StringBuilder();
-//            for (int i = 0; i < values.length; ++i) {
-//                sb.append(values[i].name()).append(':').append(messages[i]).append('\t');
-//            }
-//            System.out.println(sb.toString());
-//        }
+
         int size = getSize(originalMessage, true);
+
         ChannelBuffer encodedMessage = encode(originalMessage, true, size, pool.getDirectBuffer(size));
 
         ChannelFuture future = e.getFuture();
+
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Encoded message with bytes {} ", ChannelBuffers.copiedBuffer(encodedMessage).array());
+        }
 
         write(ctx, future, encodedMessage, e.getRemoteAddress());
     }
@@ -116,6 +112,12 @@ public class ManualEncoder implements ChannelDownstreamHandler {
             break;
         case HELLO:
             result += 4;
+            break;
+        case PREPARE:
+            result += 16;
+            break;
+        case PREPARED:
+            result += ((Prepared) msg).size();
             break;
         }
         return result;
@@ -202,6 +204,46 @@ public class ManualEncoder implements ChannelDownstreamHandler {
         case HELLO: {
             Hello h = (Hello) msg;
             buffer.writeInt(h.getClientId());
+            break;
+        }
+        case PREPARE: {
+            Prepare p = (Prepare) msg;
+            buffer.writeInt(p.getSenderId());
+            buffer.writeInt(p.getBallot());
+            buffer.writeLong(p.getMaxExecutedIid());
+            break;
+        }
+        case PREPARED: {
+            Prepared pd = (Prepared) msg;
+            buffer.writeInt(pd.getSenderId());
+            buffer.writeInt(pd.getReceiver());
+            buffer.writeInt(pd.getReplyBallot());
+
+            buffer.writeInt(pd.getAcceptedSize());
+            InstanceRecord [] accepted = pd.getAcceptedReqs();
+            for (int i = 0; i < pd.getAcceptedSize(); i++){
+                InstanceRecord currAccepted = accepted[i];
+                buffer.writeLong(currAccepted.getIid());
+                buffer.writeInt(currAccepted.getBallot());
+                buffer.writeInt(currAccepted.getArraySize());
+                ClientTimestamp[] ct = currAccepted.getClientTimestamps();
+                for (int j = 0; j < currAccepted.getArraySize(); j++){
+                    buffer.writeInt(ct[j].getClientId());
+                    buffer.writeLong(ct[j].getTimestamp());
+                }
+            }
+
+            buffer.writeInt(pd.getLearnedSize());
+            Accept [] learned = pd.getLearnedReqs();
+            for (int i = 0; i < pd.getLearnedSize(); i++){
+                Accept currLearned = learned[i];
+                encode(currLearned, true, ManualEncoder.getSize(currLearned, true), buffer);
+            }
+
+            buffer.writeInt(pd.getCheckpointDigest().getDigestId());
+            buffer.writeLong(pd.getCheckpointDigest().getDigest());
+
+            buffer.writeLong(pd.getMaxForgotten());
             break;
         }
         default:

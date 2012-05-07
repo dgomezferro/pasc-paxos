@@ -46,7 +46,7 @@ public class ProposerRequest extends PaxosHandler<Request> {
     public boolean guardPredicate(Message receivedMessage) {
         return receivedMessage instanceof Request;
     }
-    
+
     @Override
     public List<PaxosDescriptor> processMessage(Request message, PaxosState state) {
         long firstInstanceId = state.getFirstInstanceId();
@@ -54,101 +54,90 @@ public class ProposerRequest extends PaxosHandler<Request> {
 
         int clientId = message.getClientId();
         long timestamp = message.getTimestamp();
-        
-    	// TODO if a request is received twice, we should start a timer 
-    	
+
+        // TODO if a request is received twice, we should start a timer
+
         ClientTimestamp ct = new ClientTimestamp(clientId, timestamp);
 
         List<PaxosDescriptor> descriptors = null;
-        
+
         // check reply cache
         long repTs = state.getReplyCacheTimestampElement(clientId);
-        if (repTs >= timestamp){
-//            LOG.trace("We hit the reply cache for client {} with timestamp {}.",
-//                    clientId, timestamp);
-            if (state.getIsLeader()){
+        if (repTs >= timestamp) {
+            LOG.trace("We hit the reply cache for client {} with timestamp {}.", clientId, timestamp);
+            if (state.getIsLeader()) {
                 return null;
             } else {
-                return Arrays.<PaxosDescriptor>asList(new Reply.Descriptor(clientId));
+                return Arrays.<PaxosDescriptor> asList(new Reply.Descriptor(clientId));
             }
         }
-        
+
         IidRequest request;
         long requestIid = state.getReceivedRequestIid(ct);
         if (requestIid < firstInstanceId) {
-//            LOG.trace("Creating new request (Old one:{})", request);
             request = new IidRequest(message.getRequest());
             state.setReceivedRequest(ct, request);
         } else {
             request = state.getReceivedRequest(ct);
             if (request.getRequest() == null) {
-    //            LOG.trace("Appending request to accepted element");
                 request.setRequest(message.getRequest());
-                
+
                 descriptors = new ArrayList<PaxosDescriptor>(4);
                 AcceptorAccept.checkAccept(request.getIid(), state, descriptors);
             } else {
-    //            LOG.error("Got a resubmitted request or too new request. Discard message {}. FirstDigestID {}.", message, state.getFirstDigestId());
-    //            LOG.error("CurrentId: {} RequestId: {} FirstIid: {}", new Object[] {state.getCurrIid(), request.getIid(), state.getFirstInstanceId()});
+                LOG.error("Got a resubmitted request or too new request. "
+                                + "FirstDigestID: {} CurrentId: {} RequestId: {} FirstIid: {} MsgClient: {} MsgTS: {} CacheTS: {} ",
+                        new Object[] { state.getFirstDigestId(), state.getCurrIid(), request.getIid(),
+                                state.getFirstInstanceId(), clientId, timestamp, repTs });
                 return null;
             }
         }
-        
-        if (state.getIsLeader() && timestamp > state.getInProgressElement(clientId)) {
-        	state.setInProgressElement(clientId, timestamp);
-        	long iid = state.getCurrIid();
+
+        if (state.getIsLeader() && state.getCompletedPhaseOne() && timestamp > state.getInProgressElement(clientId)) {
+            state.setInProgressElement(clientId, timestamp);
+            long iid = state.getCurrIid();
 
             if (iid == firstInstanceId + maxInstances) {
                 LOG.warn("Ignoring request, must process more digests before proceeding. FirstIid {} ", firstInstanceId);
                 return null;
             }
 
-        	int bufSize = state.getInstanceBufferSize(iid);
-        	state.setClientTimestampBufferElem(new IndexIid(bufSize, iid), ct);
-        	bufSize ++;
-        	state.setInstanceBufferSize(iid, bufSize);
-        	
-        	int pendingRequests = state.getPendingInstances();
-        	int batchSize = state.getBufferSize();
-        	            
-            if (pendingRequests < state.getCongestionWindow() || bufSize >= batchSize) {
+            int bufSize = state.getInstanceBufferSize(iid);
+            state.setClientTimestampBufferElem(new IndexIid(bufSize, iid), ct);
+            bufSize++;
+            state.setInstanceBufferSize(iid, bufSize);
 
-//                LOG.trace("Sending batch. messages: {} batchSize {}", bufSize, batchSize);
+            int pendingRequests = state.getPendingInstances();
+            int batchSize = state.getBufferSize();
+
+            if (pendingRequests < state.getCongestionWindow() || bufSize >= batchSize) {
+                int ballot = state.getBallotProposer();
+
                 if (descriptors == null)
                     descriptors = new ArrayList<PaxosDescriptor>(2);
                 descriptors.add(new Accept.Descriptor(iid));
                 state.setPendingInstances(pendingRequests + 1);
 
-                IidAcceptorsCounts accepted = new IidAcceptorsCounts(iid);
+                IidAcceptorsCounts accepted = new IidAcceptorsCounts(iid, ballot);
                 state.setAcceptedElement(iid, accepted);
                 accepted.setReceivedRequests(bufSize);
                 accepted.setTotalRequests(bufSize);
                 accepted.setAccepted(true);
-                
-                descriptors.add(new Accepted.Descriptor(iid));
-                
-            	iid++;
-            	if (iid > firstInstanceId + maxInstances) {
-            	    LOG.error("Reached the end of instances' buffer. Cannot progress." +
-            	    		"iid: {} firstInstanceId: {} maxInstances: {}", new Object[] {iid, firstInstanceId, maxInstances} );
-//            	    System.err.println("Exception Bad bad bad");
-//            	    System.exit(-1);
-            	    return null;
-            	}
-            	state.setCurrIid(iid);
-                InstanceRecord nextInstance = new InstanceRecord(iid, state.getBallotProposer(), batchSize);
-                state.setInstancesElement(iid, nextInstance);
 
-//                state.setLearnedElement(iid, false);
-//                int instancesSize = state.getInstancesSize();
-//                instancesSize++;
-//                state.setInstancesSize(instancesSize);
-            } else {
-//                LOG.trace("Not yet enough messages to form a batch. " +
-//                		"pending: {} messages: {} batchSize {}", new Object[] {pendingRequests, bufSize, batchSize});
+                descriptors.add(new Accepted.Descriptor(iid));
+
+                iid++;
+                if (iid > firstInstanceId + maxInstances) {
+                    LOG.error("Reached the end of instances' buffer. Cannot progress. iid: {} firstInstanceId: {} maxInstances: {}",
+                            new Object[] { iid, firstInstanceId, maxInstances });
+                    return null;
+                }
+                state.setCurrIid(iid);
+                InstanceRecord nextInstance = new InstanceRecord(iid, ballot, batchSize);
+                state.setInstancesElement(iid, nextInstance);
             }
         }
-        
+
         return descriptors;
     }
 
@@ -156,9 +145,9 @@ public class ProposerRequest extends PaxosHandler<Request> {
         int pendingRequests = state.getPendingInstances();
         pendingRequests--;
         state.setPendingInstances(pendingRequests);
-        
+
         checkSubmit(state, descriptors, null);
-        
+
     }
 
     private static void checkSubmit(PaxosState state, List<PaxosDescriptor> descriptors, Request msg) {
@@ -169,49 +158,46 @@ public class ProposerRequest extends PaxosHandler<Request> {
         if (msg != null) {
             int clientId = msg.getClientId();
             long timestamp = msg.getTimestamp();
-            
+
             ClientTimestamp ct = new ClientTimestamp(clientId, timestamp);
-            
-    
+
             state.setClientTimestampBufferElem(new IndexIid(bufSize, iid), ct);
-            bufSize ++;
+            bufSize++;
             state.setInstanceBufferSize(iid, bufSize);
         }
-        
+
         int batchSize = state.getBufferSize();
         long firstInstanceId = state.getFirstInstanceId();
         int maxInstances = state.getMaxInstances();
-        
+
         boolean notEmpty = bufSize > 0;
         boolean windowSpace = pendingRequests < state.getCongestionWindow();
         boolean fullBatch = bufSize >= batchSize;
         if ((notEmpty && windowSpace) || fullBatch) {
             pendingRequests++;
 
-//            LOG.trace("Sending batch. messages: {} batchSize {}", bufSize, batchSize);
             descriptors.add(new Accept.Descriptor(iid));
             state.setPendingInstances(pendingRequests);
 
-            IidAcceptorsCounts accepted = new IidAcceptorsCounts(iid);
+            int ballot = state.getBallotProposer();
+
+            IidAcceptorsCounts accepted = new IidAcceptorsCounts(iid, ballot);
             state.setAcceptedElement(iid, accepted);
             accepted.setReceivedRequests(bufSize);
             accepted.setTotalRequests(bufSize);
             accepted.setAccepted(true);
-            
+
             descriptors.add(new Accepted.Descriptor(iid));
-            
+
             iid++;
             if (iid > firstInstanceId + maxInstances) {
-                LOG.error("Reached the end of instances' buffer. Cannot progress." +
-                        "iid: {} firstInstanceId: {} maxInstances: {}", new Object[] {iid, firstInstanceId, maxInstances} );
+                LOG.error("Reached the end of instances' buffer. Cannot progress. iid: {} firstInstanceId: {} maxInstances: {}", 
+                        new Object[] { iid, firstInstanceId, maxInstances });
                 return;
             }
             state.setCurrIid(iid);
-            InstanceRecord nextInstance = new InstanceRecord(iid, state.getBallotProposer(), batchSize);
+            InstanceRecord nextInstance = new InstanceRecord(iid, ballot, batchSize);
             state.setInstancesElement(iid, nextInstance);
-        } else {
-//            LOG.trace("Not yet enough messages to form a batch. " +
-//                    "pending: {} messages: {} batchSize {}", new Object[] {pendingRequests, bufSize, batchSize});
         }
     }
 

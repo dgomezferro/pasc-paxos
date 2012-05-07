@@ -16,31 +16,19 @@
 
 package com.yahoo.pasc.paxos.server;
 
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.handler.execution.ExecutionHandler;
-import org.jboss.netty.handler.execution.MemoryAwareThreadPoolExecutor;
 
-import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.messages.serialization.ManualDecoder;
-import com.yahoo.pasc.paxos.state.PaxosState;
-import com.yahoo.pasc.paxos.statemachine.StateMachine;
 
-/**
- * @author maysam
- * 
- */
 public class PipelineFactory implements ChannelPipelineFactory {
 
     private ChannelHandler channelHandler = null;
 
     private ExecutionHandler executionHandler;
-//    private DownstreamExecutionHandler downstreamExecutionHandler;
     private boolean twoStages;
 
     /**
@@ -54,45 +42,19 @@ public class PipelineFactory implements ChannelPipelineFactory {
      * @param shared
      *            The shared state among handlers
      */
-    public PipelineFactory(PascRuntime<PaxosState> runtime, StateMachine stateMachine, ServerConnection serverConnection, int threads, final int id, 
-            boolean twoStages) {
+    public PipelineFactory(ChannelHandler handler, ExecutionHandler executionHandler, boolean twoStages) {
         super();
-        this.executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(1, 1024 * 1024,
-                1024 * 1024 * 1024, 10, TimeUnit.SECONDS, new ThreadFactory() {
-                    private int count = 0;
-
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        return new Thread(r, id + "-" + count++);
-                    }
-                }));
-//        this.executionHandler = new ExecutionHandler(Executors.newSingleThreadExecutor(new ThreadFactory() {
-//                    private int count = 0;
-//
-//                    @Override
-//                    public Thread newThread(Runnable r) {
-//                        return new Thread(r, id + "-" + count++);
-//                    }
-//                }));
-//        this.downstreamExecutionHandler = new DownstreamExecutionHandler(Executors.newCachedThreadPool());
-        this.channelHandler = new ServerHandler(runtime, stateMachine, serverConnection);
+        this.executionHandler = executionHandler;
+        this.channelHandler = handler;
         this.twoStages = twoStages;
     }
 
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline pipeline = Channels.pipeline();
-        // pipeline.addLast("decoder", new KryoDecoder(kryo));
-        // pipeline.addLast("encoder", new KryoEncoder(kryo));
-
-
         pipeline.addLast("decoder", new ManualDecoder());
-//        pipeline.addLast("encoder", new ManualEncoder());
-        
         if (twoStages) {
             pipeline.addLast("executor", executionHandler);
         }
-//        pipeline.addLast("downstreamExecutor", downstreamExecutionHandler);
-
         pipeline.addLast("handler", channelHandler);
         return pipeline;
     }

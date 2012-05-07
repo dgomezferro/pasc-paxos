@@ -21,10 +21,12 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -37,16 +39,21 @@ import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.embedder.EncoderEmbedder;
+import org.jboss.netty.handler.execution.ExecutionHandler;
+import org.jboss.netty.handler.execution.MemoryAwareThreadPoolExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.messages.Hello;
+import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
 import com.yahoo.pasc.paxos.messages.serialization.ManualEncoder;
+import com.yahoo.pasc.paxos.server.LeaderElection;
 import com.yahoo.pasc.paxos.server.PipelineFactory;
 import com.yahoo.pasc.paxos.server.ServerConnection;
+import com.yahoo.pasc.paxos.server.ServerHandler;
 import com.yahoo.pasc.paxos.state.PaxosState;
 import com.yahoo.pasc.paxos.statemachine.StateMachine;
 
@@ -60,8 +67,9 @@ public class TcpServer implements ServerConnection {
     private ExecutorService bossExecutor;
     private ExecutorService workerExecutor;
 
-    private ChannelGroup serverChannels = new DefaultChannelGroup("serversTcp");
-    private Map<Integer, Channel> clientChannels = new ConcurrentHashMap<Integer, Channel>(1024, 0.75f, 32);
+    private ChannelGroup serverChannels = new DefaultChannelGroup("servers");
+    private ConcurrentMap<Integer, Channel> indexedServerChannels = new ConcurrentHashMap<Integer, Channel>(1024, 0.75f, 32);
+    private ConcurrentMap<Integer, Channel> clientChannels = new ConcurrentHashMap<Integer, Channel>(1024, 0.75f, 32);
 
     private int port;
     private int threads;
@@ -71,12 +79,28 @@ public class TcpServer implements ServerConnection {
 
     private Channel serverChannel;
 
-    public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, String servers[], String clients[], int port,
-            int threads, int id, boolean twoStages) {
+    private ExecutionHandler executionHandler;
+
+    private ServerHandler channelHandler;
+
+    private LeaderElection leaderElection;
+
+    public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, String zk, String servers[], String clients[], int port,
+            int threads, final int id, boolean twoStages) throws IOException {
         this.bossExecutor = Executors.newCachedThreadPool();
         this.workerExecutor = Executors.newCachedThreadPool();
-//        this.workerExecutor = Executors.newSingleThreadExecutor();
-        this.channelPipelineFactory = new PipelineFactory(runtime, sm, this, threads, id, twoStages);
+        this.executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(1, 1024 * 1024,
+                1024 * 1024 * 1024, 10, TimeUnit.SECONDS, new ThreadFactory() {
+                    private int count = 0;
+
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        return new Thread(r, id + "-" + count++);
+                    }
+                }));
+        this.channelHandler = new ServerHandler(runtime, sm, this);
+        this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages);
+        this.leaderElection = new LeaderElection(zk, id, this.channelHandler);
         this.servers = servers;
         this.port = port;
         this.threads = threads;
@@ -86,16 +110,15 @@ public class TcpServer implements ServerConnection {
     public void run() {
         startServer();
         try {
-            Thread.sleep(5000);
+            Thread.sleep(2000);
         } catch (InterruptedException ignore) {
         }
+        leaderElection.start();
         setupConnections();
     }
 
     @Override
     public void forward(List<Message> messages) {
-//        LOG.trace("Sending: {}", messages);
-        
         if (messages == null) {
             return;
         }
@@ -113,7 +136,6 @@ public class TcpServer implements ServerConnection {
                     LOG.error("Client {} not yet connected. Cannot send reply.", clientId);
                     continue;
                 }
-//                LOG.trace("Sending {} to {}.", msg, clientChannel);
                 embedder.offer(msg);
                 ChannelBuffer encoded = embedder.poll();
                 clientChannel.write(encoded);
@@ -127,13 +149,21 @@ public class TcpServer implements ServerConnection {
                     LOG.error("Client {} not yet connected. Cannot send reply.", clientId);
                     continue;
                 }
-//                LOG.trace("Sending {} to {}.", msg, clientChannel);
                 embedder.offer(hello);
                 ChannelBuffer encoded = embedder.poll();
                 clientChannel.write(encoded);
+            } else if (msg instanceof Prepared) {
+                Prepared prepared = (Prepared) msg;
+                int receiver = prepared.getReceiver();
+                Channel channel = indexedServerChannels.get(receiver);
+                if (channel != null) {
+                    embedder.offer(msg);
+                    channel.write(embedder.poll());
+                    LOG.trace("Sent {} to {}.", msg, receiver);
+                } else {
+                    LOG.error("Server {} not yet connected. Cannot send prepared.", receiver);
+                }
             } else {
-                // Send to all servers
-//                LOG.trace("Sending {} to {}.", msg, serverChannels);
                 embedder.offer(msg);
                 ChannelBuffer encoded = embedder.poll();
                 serverChannels.write(encoded);
@@ -160,13 +190,14 @@ public class TcpServer implements ServerConnection {
 
         serverChannel = bootstrap.bind(new InetSocketAddress(port));
         try {
-            System.out.println("Bound :" + serverChannel + " at " + InetAddress.getLocalHost().getHostName());
+            LOG.warn("Bound :" + serverChannel + " at " + InetAddress.getLocalHost().getHostName());
         } catch (UnknownHostException e) {
             //ignore
         }
     }
 
     private void setupConnections() {
+        int id = 0;
         for (String server : servers) {
             // Parse options.
             final String url[] = server.split(":");
@@ -182,14 +213,15 @@ public class TcpServer implements ServerConnection {
             bootstrap.setOption("keepAlive", true);
 
             // Start the connection attempt.
-            ChannelFuture future = null;
-            while (future == null || !future.isSuccess()) {
+            LOG.trace("Connecting to {}:{}", hostname, port);
+            ChannelFuture future = bootstrap.connect(new InetSocketAddress(hostname, port));
+            future.awaitUninterruptibly();
+            long wait = 1000;
+            while (!future.isSuccess()) {
                 try {
-                    if (future != null) {
-                        future.cancel();
-                    }
-//                    Thread.sleep(1000);
-                    LOG.trace("Connecting to {}:{}", hostname, port);
+                    future.cancel();
+                    Thread.sleep(wait);
+                    wait *= 2;
                     future = bootstrap.connect(new InetSocketAddress(hostname, port));
                     future.awaitUninterruptibly();
                 } catch (Exception e) {
@@ -197,6 +229,8 @@ public class TcpServer implements ServerConnection {
                 }
             }
             serverChannels.add(future.getChannel());
+            indexedServerChannels.put(id, future.getChannel());
+            id++;
         }
 
     }
@@ -205,5 +239,6 @@ public class TcpServer implements ServerConnection {
     public void close() throws IOException {
         serverChannel.close();
         serverChannels.close();
+        indexedServerChannels.clear();
     }
 }

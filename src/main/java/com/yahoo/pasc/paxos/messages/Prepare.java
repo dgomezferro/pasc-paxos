@@ -16,23 +16,23 @@
 
 package com.yahoo.pasc.paxos.messages;
 
-public class Prepare extends PaxosMessage {
+import java.util.Arrays;
+import java.util.List;
+
+import com.yahoo.pasc.paxos.state.PaxosState;
+
+public class Prepare extends PaxosMessage implements PaxosDescriptor {
 
     private static final long serialVersionUID = -4705441494405137950L;
 
     int senderId;
     int ballot;
-    int maxLearnedIid;
+    long maxExecutedIid;
 
-    public Prepare() {
-        // TODO Auto-generated constructor stub
-    }
-
-    public Prepare(int senderId, int ballot, int maxLearnedIid) {
-        super();
+    public Prepare(int senderId, int ballot, long maxExecutedIid) {
         this.senderId = senderId;
         this.ballot = ballot;
-        this.maxLearnedIid = maxLearnedIid;
+        this.maxExecutedIid = maxExecutedIid;
     }
 
     public int getSenderId() {
@@ -51,17 +51,22 @@ public class Prepare extends PaxosMessage {
         this.ballot = ballot;
     }
 
-    public int getMaxLearnedIid() {
-        return maxLearnedIid;
+    public long getMaxExecutedIid() {
+        return maxExecutedIid;
     }
 
-    public void setMaxLearnedIid(int maxLearnedIid) {
-        this.maxLearnedIid = maxLearnedIid;
+    public void setMaxExecutedIid(int maxExecutedIid) {
+        this.maxExecutedIid = maxExecutedIid;
     }
 
     @Override
     public String toString() {
-        return String.format("{Prepare sent from %d with ballot %d and maxLearnedId %d}", senderId, ballot,
-                maxLearnedIid);
+        return String.format("{Prepare sent from %d with ballot %d and maxExecutedId %d}", senderId, ballot,
+                maxExecutedIid);
+    }
+
+    @Override
+    public List<PaxosMessage> buildMessages(PaxosState state) {
+        return Arrays.<PaxosMessage>asList(this);
     }
 }

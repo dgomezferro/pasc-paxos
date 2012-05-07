@@ -28,8 +28,8 @@ public final class InstanceRecord implements Serializable, EqualsDeep<InstanceRe
 
     long iid;
     int ballot;
-    ClientTimestamp[] clientTimestamps;
     int arraySize;
+    ClientTimestamp[] clientTimestamps;
 
     public InstanceRecord(long iid, int ballot, int bufferSize) {
         this.iid = iid;
@@ -39,7 +39,6 @@ public final class InstanceRecord implements Serializable, EqualsDeep<InstanceRe
     }
 
     public InstanceRecord(long iid, int ballot, ClientTimestamp[] clientTimestamps, int arraySize) {
-        super();
         this.iid = iid;
         this.ballot = ballot;
         this.clientTimestamps = clientTimestamps;
@@ -84,6 +83,11 @@ public final class InstanceRecord implements Serializable, EqualsDeep<InstanceRe
 
     public void setArraySize(int newSize) {
         arraySize = newSize;
+    }
+
+    public int size(){
+        // 16 bytes for internal fields and 12 for each clientTimestamp
+        return 16 + 12 * arraySize;
     }
 
     @Override

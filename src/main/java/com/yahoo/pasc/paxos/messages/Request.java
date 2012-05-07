@@ -67,7 +67,11 @@ public class Request extends PaxosMessage implements Serializable, EqualsDeep<Re
 
     @Override
     public String toString() {
-        return String.format("{Request %s sent from %d at %d %s}", Arrays.toString(request), clientId, timestamp, super.toString());  
+        String requestStr = Arrays.toString(request);
+        if (requestStr.length() > 20) {
+            requestStr = requestStr.substring(0, 20) + " ... ]";
+        }
+        return String.format("{Request %s sent from %d at %d %s}", requestStr, clientId, timestamp, super.toString());  
     }
     
     public Request cloneDeep (){
