@@ -17,13 +17,8 @@
 package com.yahoo.pasc.paxos.client;
 
 import com.yahoo.pasc.Message;
-import com.yahoo.pasc.MessageDescriptor;
 
 public class Connected extends Message {
-
-    public static class Descriptor implements MessageDescriptor {
-
-    }
 
     @Override
     protected boolean verify() {

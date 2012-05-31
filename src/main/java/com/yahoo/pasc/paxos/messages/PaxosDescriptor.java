@@ -18,9 +18,8 @@ package com.yahoo.pasc.paxos.messages;
 
 import java.util.List;
 
-import com.yahoo.pasc.MessageDescriptor;
 import com.yahoo.pasc.paxos.state.PaxosState;
 
-public interface PaxosDescriptor extends MessageDescriptor {
+public interface PaxosDescriptor {
     public List<PaxosMessage> buildMessages(PaxosState state);
 }

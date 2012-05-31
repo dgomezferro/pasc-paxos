@@ -21,9 +21,8 @@ import java.util.Arrays;
 
 import com.yahoo.pasc.CloneableDeep;
 import com.yahoo.pasc.EqualsDeep;
-import com.yahoo.pasc.MessageDescriptor;
 
-public class Request extends PaxosMessage implements Serializable, EqualsDeep<Request>, CloneableDeep<Request>, MessageDescriptor {
+public class Request extends PaxosMessage implements Serializable, EqualsDeep<Request>, CloneableDeep<Request> {
 
     private static final long serialVersionUID = 1111659280353033430L;
 

@@ -25,7 +25,7 @@ import com.yahoo.pasc.paxos.client.ClientState;
 import com.yahoo.pasc.paxos.client.Connected;
 import com.yahoo.pasc.paxos.messages.Hello;
 
-public class HelloHandler implements MessageHandler<Hello, ClientState, Connected.Descriptor> {
+public class HelloHandler implements MessageHandler<Hello, ClientState, Connected> {
 
     @Override
     public boolean guardPredicate(Hello receivedMessage) {
@@ -33,20 +33,20 @@ public class HelloHandler implements MessageHandler<Hello, ClientState, Connecte
     }
 
     @Override
-    public List<Connected.Descriptor> processMessage(Hello hello, ClientState state) {
-        List<Connected.Descriptor> descriptors = null;
+    public List<Connected> processMessage(Hello hello, ClientState state) {
+        List<Connected> descriptors = null;
         int connected = state.getConnected();
         connected++;
         state.setConnected(connected);
         if (connected == state.getServers()) {
             // Send the first message if connected to all servers
-            descriptors = Arrays.asList(new Connected.Descriptor());
+            descriptors = Arrays.asList(new Connected());
         }
         return descriptors;
     }
 
     @Override
-    public List<Message> getSendMessages(ClientState state, List<Connected.Descriptor> descriptors) {
+    public List<Message> getSendMessages(ClientState state, List<Connected> descriptors) {
         if (descriptors != null && descriptors.size() > 0) {
             return Arrays.<Message> asList(new Connected());
         }

@@ -17,11 +17,10 @@
 package com.yahoo.pasc.paxos.client.messages;
 
 import com.yahoo.pasc.Message;
-import com.yahoo.pasc.MessageDescriptor;
 
 public class Submit extends Message {
 
-    public static class Descriptor implements MessageDescriptor {
+    public static class Descriptor {
 
         private byte[] value;
 
