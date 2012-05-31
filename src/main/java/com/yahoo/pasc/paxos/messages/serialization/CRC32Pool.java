@@ -16,23 +16,21 @@
 
 package com.yahoo.pasc.paxos.messages.serialization;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.zip.Checksum;
 
 public class CRC32Pool {
 
-    private static Deque<Checksum> pool = new ArrayDeque<Checksum>();
+//    private static BlockingQueue<Checksum> pool = new ArrayBlockingQueue<Checksum>(100);
     
-    public static synchronized Checksum getCRC32() {
-        if (pool.isEmpty()) {
-            return new PureJavaCrc32();
-        }
-        return pool.pollLast();
+    public static Checksum getCRC32() {
+//        Checksum cs = pool.poll();
+//        if (cs == null) return new FastCrc32();
+//        return cs;
+        return new PureJavaCrc32();
     }
     
 
-    public static synchronized void pushCRC32(Checksum crc32) {
-        pool.add(crc32);
+    public static void pushCRC32(Checksum crc32) {
+//        pool.offer(crc32);
     }
 }

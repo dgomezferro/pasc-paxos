@@ -16,26 +16,30 @@
 
 package com.yahoo.pasc.paxos.statemachine;
 
+import java.util.zip.Checksum;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pasc.paxos.messages.Execute;
 import com.yahoo.pasc.paxos.messages.serialization.PureJavaCrc32;
 
 public class EmptyStateMachine implements StateMachine {
 
     private static final Logger LOG = LoggerFactory.getLogger(EmptyStateMachine.class);
 
-    private PureJavaCrc32 crc32 = new PureJavaCrc32();
+    private Checksum crc32 = new PureJavaCrc32();
     long crc = 0;
 
     @Override
-    public byte[] execute(byte[] command) {
+    public Response execute(Execute execute) {
+        byte [] command = execute.getRequest();
         crc32.reset();
         crc32.update(command, 0, command.length);
         byte[] t = toByta(crc);
         crc32.update(t, 0, t.length);
         crc = crc32.getValue();
-        return toByta(crc);
+        return new Response(toByta(crc), null);
     }
 
     @Override

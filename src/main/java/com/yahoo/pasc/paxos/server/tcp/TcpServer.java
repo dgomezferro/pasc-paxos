@@ -28,6 +28,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooKeeper;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -41,11 +43,14 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.embedder.EncoderEmbedder;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.MemoryAwareThreadPoolExecutor;
+import org.jboss.netty.util.ObjectSizeEstimator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
+import com.yahoo.pasc.paxos.Barrier;
+import com.yahoo.pasc.paxos.messages.AsyncMessage;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
@@ -85,12 +90,21 @@ public class TcpServer implements ServerConnection {
 
     private LeaderElection leaderElection;
 
+    private Barrier barrier;
+
     public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, String zk, String servers[], String clients[], int port,
-            int threads, final int id, boolean twoStages) throws IOException {
+            int threads, final int id, boolean twoStages) throws IOException, KeeperException {
         this.bossExecutor = Executors.newCachedThreadPool();
         this.workerExecutor = Executors.newCachedThreadPool();
         this.executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(1, 1024 * 1024,
-                1024 * 1024 * 1024, 10, TimeUnit.SECONDS, new ThreadFactory() {
+                1024 * 1024 * 1024, 10, TimeUnit.SECONDS,
+                new ObjectSizeEstimator() {
+                    @Override
+                    public int estimateSize(Object o) {
+                        return 1024;
+                    }
+                },
+                new ThreadFactory() {
                     private int count = 0;
 
                     @Override
@@ -101,6 +115,7 @@ public class TcpServer implements ServerConnection {
         this.channelHandler = new ServerHandler(runtime, sm, this);
         this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages);
         this.leaderElection = new LeaderElection(zk, id, this.channelHandler);
+        this.barrier = new Barrier(new ZooKeeper(zk, 2000, leaderElection), "/paxos_srv_barrier", "" + id, servers.length);
         this.servers = servers;
         this.port = port;
         this.threads = threads;
@@ -109,11 +124,16 @@ public class TcpServer implements ServerConnection {
 
     public void run() {
         startServer();
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException ignore) {
-        }
         leaderElection.start();
+        try {
+            barrier.enter();
+            leaderElection.refresh();
+            barrier.leave();
+        } catch (KeeperException e) {
+            LOG.error("Couldn't initialize leaderElection", e);
+        } catch (InterruptedException e) {
+            LOG.error("Couldn't initialize leaderElection", e);
+        }
         setupConnections();
     }
 
@@ -137,6 +157,17 @@ public class TcpServer implements ServerConnection {
                     continue;
                 }
                 embedder.offer(msg);
+                ChannelBuffer encoded = embedder.poll();
+                clientChannel.write(encoded);
+            } else if (msg instanceof AsyncMessage) {
+                AsyncMessage asyncMessage = (AsyncMessage) msg;
+                int clientId = asyncMessage.getClientId();
+                Channel clientChannel = clientChannels.get(clientId);
+                if (clientChannel == null) {
+                    LOG.error("Client {} not yet connected. Cannot send async message.", clientId);
+                    continue;
+                }
+                embedder.offer(asyncMessage);
                 ChannelBuffer encoded = embedder.poll();
                 clientChannel.write(encoded);
             } else if (msg instanceof Hello) {

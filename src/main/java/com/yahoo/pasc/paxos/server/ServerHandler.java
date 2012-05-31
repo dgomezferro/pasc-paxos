@@ -43,6 +43,7 @@ import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.PreReply;
 import com.yahoo.pasc.paxos.state.PaxosState;
+import com.yahoo.pasc.paxos.statemachine.Response;
 import com.yahoo.pasc.paxos.statemachine.StateMachine;
 
 public class ServerHandler extends SimpleChannelHandler implements LeadershipObserver {
@@ -83,9 +84,13 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
         }
         MessageType type = MessageType.getMessageType(message);
         long startTime = System.nanoTime();
-        while (!leadershipQueue.isEmpty()) {
-            LOG.trace("Handling leadership change {}", leadershipQueue.peek());
-            List<Message> toForward = runtime.handleMessage(leadershipQueue.poll());
+        if (!leadershipQueue.isEmpty()) {
+            Message leadChange = null;
+            while (!leadershipQueue.isEmpty()) {
+                leadChange = leadershipQueue.poll();
+            }
+            LOG.warn("Handling leadership change {}", leadChange);
+            List<Message> toForward = runtime.handleMessage(leadChange);
             serverConnection.forward(toForward);
         }
         try {
@@ -108,13 +113,19 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
             for (Message m : responses) {
                 if (m instanceof Execute) {
                     Execute execute = (Execute) m;
-                    byte[] response = stateMachine.execute(execute.getRequest());
-                    PreReply rep = new PreReply(execute.getClientId(), execute.getTimestamp(), response);
+                    Response response = stateMachine.execute(execute);
+                    PreReply rep = new PreReply(execute.getClientId(), execute.getTimestamp(), response.getResponse());
                     if (execute.isGenerateDigest()) {
                         rep.setDigest(stateMachine.digest());
                         rep.setIid(execute.getIid());
                     }
                     List<Message> replies = runtime.handleMessage(rep);
+                    if (response.getAsyncMessages() != null) {
+                        for (Message we : response.getAsyncMessages()) {
+                            we.storeReplica(we);
+                        }
+                        toForward.addAll(response.getAsyncMessages());
+                    }
                     if (replies != null) {
                         toForward.addAll(replies);
                     }

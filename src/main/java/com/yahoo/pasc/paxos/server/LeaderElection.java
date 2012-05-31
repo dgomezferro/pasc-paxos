@@ -37,7 +37,7 @@ public class LeaderElection implements Watcher {
         }
         try {
             zk.create(ELECTION_PATH + "/" + id, null, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-            checkLeadership(zk.getChildren(ELECTION_PATH, this));
+//            checkLeadership(zk.getChildren(ELECTION_PATH, this));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -69,7 +69,10 @@ public class LeaderElection implements Watcher {
     public void process(WatchedEvent event) {
         if (event.getType() != EventType.NodeChildrenChanged)
             return;
+        refresh();
+    }
 
+    public void refresh() {
         try {
             checkLeadership(zk.getChildren(ELECTION_PATH, this));
         } catch (KeeperException e) {

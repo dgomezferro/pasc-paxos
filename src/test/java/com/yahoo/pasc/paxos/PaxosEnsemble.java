@@ -71,17 +71,17 @@ public class PaxosEnsemble {
 //        String confClient3 = "-i 2 -l 127.0.0.1:20548,127.0.0.1:20748,127.0.0.1:20778, -s 3 -p 9002 -c 3 " + useAnm;
 
         if (args.length == 0) {
-        startZK();
+            startZK();
 
-        executeServer("leader", confServer0);
-        Thread.sleep(1000);
-        executeServer("replica1", confServer1);
-        Thread.sleep(1000);
-        executeServer("replica2", confServer2);
-        
-        Thread.sleep(7000);
+            executeServer("leader", confServer0);
+            Thread.sleep(1000);
+            executeServer("replica1", confServer1);
+            Thread.sleep(1000);
+            executeServer("replica2", confServer2);
 
-        executeClient("client", confClient);
+            Thread.sleep(7000);
+
+            executeClient("client", confClient);
 //        executeClient("client2", confClient2);
 //        executeClient("client3", confClient3);
         } else {

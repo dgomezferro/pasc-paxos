@@ -39,18 +39,18 @@ public class SimpleClient implements ClientInterface {
 
     @Override
     public void connected() {
-        expected = execute(payload);
+//        expected = execute(payload);
         paxos.submitNewRequest(payload);
         
     }
     @Override
     public void messageReceived(byte[] message) {
-        if (!Arrays.equals(message, expected)) {
-            LOG.warn("State divergence. Wrong response. \n Stored: {} \n Received: {} \n From: {}", 
-                    expected, message);
-        }
+//        if (!Arrays.equals(message, expected)) {
+//            LOG.warn("State divergence. Wrong response. \n Stored: {} \n Received: {} \n From: {}", 
+//                    expected, message);
+//        }
         random.nextBytes(payload);
-        expected = execute(payload);
+//        expected = execute(payload);
         paxos.submitNewRequest(payload);
     }
     
@@ -58,17 +58,17 @@ public class SimpleClient implements ClientInterface {
         paxos = paxosInterface;
     };
 
-    private PureJavaCrc32 crc32 = new PureJavaCrc32();
+//    private PureJavaCrc32 crc32 = new PureJavaCrc32();
     long crc = 0;
 
-    public byte[] execute(byte[] command) {
-        crc32.reset();
-        crc32.update(command, 0, command.length);
-        byte[] t = toByta(crc);
-        crc32.update(t, 0, t.length);
-        crc = crc32.getValue();
-        return toByta(crc);
-    }
+//    private byte[] execute(byte[] command) {
+//        crc32.reset();
+//        crc32.update(command, 0, command.length);
+//        byte[] t = toByta(crc);
+//        crc32.update(t, 0, t.length);
+//        crc = crc32.getValue();
+//        return toByta(crc);
+//    }
 
     public static byte[] toByta(long data) {
         return new byte[] { (byte) ((data >> 56) & 0xff), (byte) ((data >> 48) & 0xff), (byte) ((data >> 40) & 0xff),

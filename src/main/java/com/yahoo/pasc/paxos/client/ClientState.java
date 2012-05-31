@@ -27,6 +27,7 @@ public class ClientState implements ProcessState {
     int quorum;
     int connected;
     int inlineThreshold;
+    TimestampMessage asyncMessages [];
 
     long timestamp = -1;
     Request pendingRequest;
@@ -34,11 +35,12 @@ public class ClientState implements ProcessState {
     byte[] value;
     private int from;
 
-    public ClientState(int clientId, int servers, int quorum, int inlineThreshold) {
+    public ClientState(int clientId, int servers, int quorum, int inlineThreshold, int asyncMessages) {
         this.clientId = clientId;
         this.servers = servers;
         this.quorum = quorum;
         this.inlineThreshold = inlineThreshold;
+        this.asyncMessages = new TimestampMessage[asyncMessages];
     }
 
     public int getClientId() {
@@ -119,6 +121,14 @@ public class ClientState implements ProcessState {
 
     public int getFrom() {
         return from;
+    }
+
+    public TimestampMessage getAsyncMessage(long i) {
+        return asyncMessages[(int)(i % asyncMessages.length)];
+    }
+
+    public void setAsyncMessage(long i, TimestampMessage m) {
+        asyncMessages[(int)(i % asyncMessages.length)] = m;
     }
 
 }

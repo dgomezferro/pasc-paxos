@@ -14,7 +14,7 @@
  * limitations under the License. See accompanying LICENSE file.
  */
 
-package com.yahoo.pasc.paxos.client;
+package com.yahoo.pasc.paxos;
 
 import java.io.IOException;
 
@@ -26,8 +26,14 @@ import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.yahoo.pasc.paxos.client.PaxosClientHandler;
 
 public class Barrier implements Watcher {
+    private static final Logger LOG = LoggerFactory.getLogger(Barrier.class);
+
     private int size;
     private String name;
     private ZooKeeper zk;
@@ -43,23 +49,23 @@ public class Barrier implements Watcher {
      * @throws IOException
      * @throws KeeperException
      */
-    Barrier(ZooKeeper zk, String root, String name, int size) throws KeeperException, IOException {
+    public Barrier(ZooKeeper zk, String root, String name, int size) throws KeeperException, IOException {
         this.zk = zk;
         this.mutex = new Object();
         this.root = root;
         this.size = size;
         this.name = name;
-        
+
         try {
             zk.create(root, null, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } catch (KeeperException e) {
             if (e.code().equals(Code.NODEEXISTS)) {
                 //ignore
             } else {
-                System.out.println("Keeper exception when instantiating barrier: " + e.toString());
+                LOG.error("Keeper exception when instantiating barrier.", e);
             }
         } catch (InterruptedException e) {
-            System.out.println("Interrupted exception");
+            LOG.error("Interrupted exception", e);
         }
     }
 
@@ -71,9 +77,10 @@ public class Barrier implements Watcher {
      * @throws InterruptedException
      */
 
-    boolean enter() throws KeeperException, InterruptedException {
+    public boolean enter() throws KeeperException, InterruptedException {
         zk.create(root + "/" + name, null, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-        if (zk.getChildren(root, false).size() == size) {
+        int children = zk.getChildren(root, false).size();
+        if (children >= size) {
             try {
                 zk.create(root + "/start", null, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             } catch (KeeperException e) {
@@ -85,7 +92,7 @@ public class Barrier implements Watcher {
         }
         while (true) {
             synchronized (mutex) {
-                Stat stat = zk.exists(root + "/start", true);
+                Stat stat = zk.exists(root + "/start", this);
                 if (stat != null) {
                     return true;
                 }
@@ -101,11 +108,11 @@ public class Barrier implements Watcher {
      * @throws KeeperException
      * @throws InterruptedException
      */
-    boolean leave() throws KeeperException, InterruptedException {
+    public boolean leave() throws KeeperException, InterruptedException {
         zk.delete(root + "/" + name, -1);
         while (true) {
             synchronized (mutex) {
-                int children = zk.getChildren(root, true).size();
+                int children = zk.getChildren(root, this).size();
                 if (children == 1) {
                     try {
                           zk.delete(root + "/start", -1);
@@ -133,7 +140,7 @@ public class Barrier implements Watcher {
         }
     }
     
-    void close() throws InterruptedException {
+    public void close() throws InterruptedException {
         zk.close();
     }
 }

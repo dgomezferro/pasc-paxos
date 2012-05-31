@@ -16,8 +16,10 @@
 
 package com.yahoo.pasc.paxos.statemachine;
 
+import com.yahoo.pasc.paxos.messages.Execute;
+
 public interface StateMachine {
-    public byte[] execute(byte[] command);
+    public Response execute(Execute execute);
 
     public void installDigest(long digest);
 

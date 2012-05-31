@@ -29,8 +29,8 @@ import com.yahoo.pasc.EqualsDeep;
 import com.yahoo.pasc.paxos.state.PaxosState;
 import com.yahoo.pasc.paxos.state.TimestampReply;
 
-public class Reply extends PaxosMessage implements Serializable, CloneableDeep<Reply>, EqualsDeep<Reply>{
-    
+public class Reply extends PaxosMessage implements Serializable, CloneableDeep<Reply>, EqualsDeep<Reply> {
+
     @SuppressWarnings("unused")
     private static final Logger LOG = LoggerFactory.getLogger(PaxosMessage.class);
 
@@ -41,19 +41,19 @@ public class Reply extends PaxosMessage implements Serializable, CloneableDeep<R
         private static final Logger LOG = LoggerFactory.getLogger(Descriptor.class);
 
         private int clientId;
-        
+
         public Descriptor(int clientId) {
             this.clientId = clientId;
         }
-        
+
         @Override
         public List<PaxosMessage> buildMessages(PaxosState state) {
             List<PaxosMessage> messages = new ArrayList<PaxosMessage>();
             TimestampReply tr = state.getReplyCacheElement(clientId);
-            if (tr != null){
-            	messages.add(new Reply(clientId, state.getServerId(), tr.getTimestamp(), tr.getReply()));
+            if (tr != null) {
+                messages.add(new Reply(clientId, state.getServerId(), tr.getTimestamp(), tr.getReply()));
             } else {
-//                LOG.trace("Reply cache for client {} is null", clientId);
+                // LOG.trace("Reply cache for client {} is null", clientId);
             }
             return messages;
         }
@@ -62,7 +62,7 @@ public class Reply extends PaxosMessage implements Serializable, CloneableDeep<R
         public boolean equalsDeep(Descriptor other) {
             return this.clientId == other.clientId;
         }
-        
+
     }
 
     int serverId;
@@ -117,21 +117,19 @@ public class Reply extends PaxosMessage implements Serializable, CloneableDeep<R
     public String toString() {
         return String.format("{Reply %s <%d,%d> from %d}", Arrays.toString(reply), clientId, timestamp, serverId);
     }
-    
-    public Reply cloneDeep (){
-    	byte [] resArray = new byte[this.reply.length];
-    	for(int i = 0; i < this.reply.length; i++){
-    		resArray[i] = this.reply[i];
-    	}
-    	return new Reply(this.clientId, this.serverId, this.timestamp, resArray);
+
+    @Override
+    public Reply cloneDeep() {
+        byte[] resArray = new byte[this.reply.length];
+        System.arraycopy(this.reply, 0, resArray, 0, resArray.length);
+        return new Reply(this.clientId, this.serverId, this.timestamp, resArray);
     }
-    
-    public boolean equalsDeep(Reply other){
-       	for(int i = 0; i < this.reply.length; i++){
-    		if (other.reply[i] != this.reply[i]){
-    			return false;
-    		}
-    	}
-    	return (this.clientId == other.clientId && this.serverId == other.serverId && this.timestamp == other.timestamp);
+
+    @Override
+    public boolean equalsDeep(Reply other) {
+        if (!Arrays.equals(other.reply, this.reply)) {
+            return false;
+        }
+        return (this.clientId == other.clientId && this.serverId == other.serverId && this.timestamp == other.timestamp);
     }
 }

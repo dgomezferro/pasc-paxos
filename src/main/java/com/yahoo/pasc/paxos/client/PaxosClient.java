@@ -30,12 +30,14 @@ import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import com.yahoo.pasc.PascRuntime;
+import com.yahoo.pasc.paxos.client.handlers.AsyncMessageHandler;
 import com.yahoo.pasc.paxos.client.handlers.HelloHandler;
 import com.yahoo.pasc.paxos.client.handlers.ReplyHandler;
 import com.yahoo.pasc.paxos.client.handlers.SubmitHandler;
 import com.yahoo.pasc.paxos.client.handlers.TimeoutHandler;
 import com.yahoo.pasc.paxos.client.messages.Submit;
 import com.yahoo.pasc.paxos.client.messages.Timeout;
+import com.yahoo.pasc.paxos.messages.AsyncMessage;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.Reply;
 
@@ -62,11 +64,13 @@ public class PaxosClient {
             Option frequency    = new Option("f", true, "frequency of throughput info");
             Option anm          = new Option("a", false, "use protection");
             Option inlineThresh = new Option("n", true, "threshold for sending requests iNline with accepts ");
+            Option asynSize     = new Option("y", true, "size of async messages queue");
             
             options = new Options();
             options.addOption(id).addOption(host).addOption(servers).addOption(quorum).addOption(port).addOption(warmup)
                     .addOption(buffer).addOption(timeout).addOption(udp).addOption(zookeeper).addOption(clients)
-                    .addOption(measuring).addOption(request).addOption(frequency).addOption(anm).addOption(inlineThresh);
+                    .addOption(measuring).addOption(request).addOption(frequency).addOption(anm).addOption(inlineThresh)
+                    .addOption(asynSize);
         }
         
         CommandLine line = null;
@@ -83,31 +87,33 @@ public class PaxosClient {
             int clients         = line.hasOption('c') ? Integer.parseInt(line.getOptionValue('c')) : 1;
             int requestSize     = line.hasOption('r') ? Integer.parseInt(line.getOptionValue('r')) : 0;
             int inlineThreshold = line.hasOption('n') ? Integer.parseInt(line.getOptionValue('n')) : 10;
+            int asynSize        = line.hasOption('y') ? Integer.parseInt(line.getOptionValue('y')) : 100;
             boolean protection  = line.hasOption('a');
-            
-    
+
             int threads = Runtime.getRuntime().availableProcessors() * 2;
             final ExecutionHandler executor = new ExecutionHandler(new OrderedMemoryAwareThreadPoolExecutor(threads, 1024 * 1024,
                 1024 * 1024 * 1024, 30, TimeUnit.SECONDS, Executors.defaultThreadFactory()));
-            
+
             String [] serverHosts = host.split(",");
             
             HelloHandler hello = new HelloHandler();
             ReplyHandler reply = new ReplyHandler();
             SubmitHandler submit = new SubmitHandler();
             TimeoutHandler tout = new TimeoutHandler();
+            AsyncMessageHandler asyncm = new AsyncMessageHandler();
             
             Random rnd = new Random();
             
             for (int i = 0; i < buffer; ++ i) {
                 int clientId = clientIds++;
-                ClientState clientState = new ClientState(clientId, servers, quorum, inlineThreshold);
+                ClientState clientState = new ClientState(clientId, servers, quorum, inlineThreshold, asynSize);
                 final PascRuntime<ClientState> runtime = new PascRuntime<ClientState>(protection);
                 runtime.setState(clientState);
                 runtime.addHandler(Hello.class, hello);
                 runtime.addHandler(Reply.class, reply);
                 runtime.addHandler(Submit.class, submit);
                 runtime.addHandler(Timeout.class, tout);
+                runtime.addHandler(AsyncMessage.class, asyncm);
                 
                 final PaxosClientHandler handler = new PaxosClientHandler(runtime, new SimpleClient(requestSize), 
                         serverHosts, clientId, clients, timeout, zkConnection, executor);

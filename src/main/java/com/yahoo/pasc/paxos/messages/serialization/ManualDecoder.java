@@ -29,6 +29,7 @@ import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.exceptions.InputMessageException;
 import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
+import com.yahoo.pasc.paxos.messages.AsyncMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
@@ -221,6 +222,17 @@ public class ManualDecoder extends FrameDecoder {
                     learnedReqs, checkpointDigest, maxForgotten);
             pd.setCRC(crc);
             return pd;
+        }
+        case ASYNC_MESSAGE: {
+            int clientId = buf.readInt();
+            int serverId = buf.readInt();
+            long ts = buf.readLong();
+            len = buf.readInt();
+            byte [] message = new byte [len];
+            buf.readBytes(message);
+            AsyncMessage am = new AsyncMessage(clientId, serverId, ts, message);
+            am.setCRC(crc);
+            return am;
         }
         }
         buf.resetReaderIndex();

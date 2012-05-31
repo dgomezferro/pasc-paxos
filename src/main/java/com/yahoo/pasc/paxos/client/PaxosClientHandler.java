@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
+import com.yahoo.pasc.paxos.Barrier;
 import com.yahoo.pasc.paxos.client.messages.Received;
 import com.yahoo.pasc.paxos.client.messages.Submit;
 import com.yahoo.pasc.paxos.client.messages.Timeout;
@@ -389,7 +390,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         public ThroughputMonitor() {
             try {
                 LOG.info("Starting monitor " + clientId + " of " + clients);
-                barrier = new Barrier(zk, "/paxos", "" + clientId, clients);
+                barrier = new Barrier(zk, "/paxos_barrier", "" + clientId, clients);
             } catch (KeeperException e) {
                 LOG.error("Couldnt create barrier", e);
             } catch (IOException e) {
@@ -404,9 +405,10 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
                     Thread.sleep(warmup);
                 } catch (InterruptedException ignore) {
                 }
-                LOG.info("[%d] Entering barrier\n", clientId);
+                LOG.info("[{}] Entering barrier", clientId);
+
                 barrier.enter();
-                LOG.info("[%d] Entered barrier\n", clientId);
+                LOG.info("[{}] Entered barrier", clientId);
                 long startMessagges = messagesReceived;
                 long startTime = System.currentTimeMillis();
                 measureLatency = true;
@@ -414,28 +416,36 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
                     Thread.sleep(getMeasuringTime());
                 } catch (InterruptedException ignore) {
                 }
-                LOG.info("[%d] Leaving barrier\n", clientId);
-                barrier.leave();
-                LOG.info(String.format("Throughput: %8.8f m/s",
-                        (messagesReceived - startMessagges)
-                                / ((double) (System.currentTimeMillis() - startTime) / 1000)));
-                LOG.info(String.format("Latency: %4.4f ms", (totalTime / (double) latencyReceived) / 1000000));
+                LOG.info("[{}] Leaving barrier", clientId);
+                try {
+                    barrier.leave();
+                } catch (Exception e) {
+                    LOG.error("Couldn't exit barrier, exiting", e);
+                    return;
+                }
+                System.out.println(String.format("Throughput: %8.8f m/s", (messagesReceived - startMessagges)
+                        / ((double) (System.currentTimeMillis() - startTime) / 1000)));
+                System.out.println(String.format("Latency: %4.4f ms", (totalTime / (double) latencyReceived) / 1000000));
 
                 barrier.close();
-
+    
                 for (Channel c : serverChannels) {
                     if (c != null) {
                         c.close();
                     }
                 }
-
-                Thread.sleep(2000);
-
+    
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+    
                 System.exit(0);
             } catch (KeeperException e) {
-                LOG.error("Couldnt measure throughput", e);
+                LOG.error("Couldn't measure throughput", e);
             } catch (InterruptedException e) {
-                LOG.error("Couldnt measure throughput", e);
+                LOG.error("Couldn't measure throughput", e);
             }
             System.exit(-1);
         }
