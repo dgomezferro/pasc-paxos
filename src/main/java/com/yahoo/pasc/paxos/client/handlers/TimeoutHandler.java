@@ -42,7 +42,7 @@ public class TimeoutHandler implements MessageHandler<Timeout, ClientState, Requ
     }
 
     @Override
-    public List<Message> getSendMessages(ClientState state, List<Request> messages) {
+    public List<Message> getOutputMessages(ClientState state, List<Request> messages) {
         if (messages != null && messages.size() > 0) {
             return Arrays.<Message>asList(messages.get(0));
         }

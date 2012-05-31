@@ -65,7 +65,7 @@ public class ReplyHandler implements MessageHandler<Reply, ClientState, Received
     }
 
     @Override
-    public List<Message> getSendMessages(ClientState state, List<Received.Descriptor> descriptors) {
+    public List<Message> getOutputMessages(ClientState state, List<Received.Descriptor> descriptors) {
         if (descriptors != null && descriptors.size() > 0) {
             return Arrays.<Message> asList(new Received(descriptors.get(0).getValue()));
         }

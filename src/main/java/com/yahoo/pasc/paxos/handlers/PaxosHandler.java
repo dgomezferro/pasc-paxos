@@ -34,7 +34,7 @@ public abstract class PaxosHandler<M extends PaxosMessage>
     };
 
     @Override
-    public List<Message> getSendMessages(PaxosState state, List<PaxosDescriptor> descriptors) {
+    public List<Message> getOutputMessages(PaxosState state, List<PaxosDescriptor> descriptors) {
         if (descriptors == null) 
             return null;
 

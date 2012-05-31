@@ -49,7 +49,7 @@ public class SubmitHandler implements MessageHandler<Submit, ClientState, Reques
     }
 
     @Override
-    public List<Message> getSendMessages(ClientState state, List<Request> messages) {
+    public List<Message> getOutputMessages(ClientState state, List<Request> messages) {
         return Arrays.<Message>asList(messages.get(0));
     }
 }

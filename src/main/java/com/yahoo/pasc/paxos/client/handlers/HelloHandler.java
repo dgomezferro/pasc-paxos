@@ -46,7 +46,7 @@ public class HelloHandler implements MessageHandler<Hello, ClientState, Connecte
     }
 
     @Override
-    public List<Message> getSendMessages(ClientState state, List<Connected> descriptors) {
+    public List<Message> getOutputMessages(ClientState state, List<Connected> descriptors) {
         if (descriptors != null && descriptors.size() > 0) {
             return Arrays.<Message> asList(new Connected());
         }
