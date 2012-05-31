@@ -29,15 +29,15 @@ import com.yahoo.pasc.paxos.client.ClientState;
 import com.yahoo.pasc.paxos.client.TimestampMessage;
 import com.yahoo.pasc.paxos.client.messages.Received;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
-import com.yahoo.pasc.paxos.messages.Reply;
 
 public class AsyncMessageHandler implements MessageHandler<AsyncMessage, ClientState, Received.Descriptor> {
     
+    @SuppressWarnings("unused")
     private static final Logger LOG = LoggerFactory.getLogger(AsyncMessageHandler.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof AsyncMessage;
+    public boolean guardPredicate(AsyncMessage receivedMessage) {
+        return true;
     }
 
     @Override

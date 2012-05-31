@@ -23,7 +23,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pasc.Message;
 import com.yahoo.pasc.paxos.handlers.PaxosHandler;
 import com.yahoo.pasc.paxos.handlers.acceptor.AcceptorAccept;
 import com.yahoo.pasc.paxos.messages.Accept;
@@ -41,11 +40,6 @@ import com.yahoo.pasc.paxos.state.PaxosState;
 public class ProposerRequest extends PaxosHandler<Request> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProposerRequest.class);
-
-    @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Request;
-    }
 
     @Override
     public List<PaxosDescriptor> processMessage(Request message, PaxosState state) {

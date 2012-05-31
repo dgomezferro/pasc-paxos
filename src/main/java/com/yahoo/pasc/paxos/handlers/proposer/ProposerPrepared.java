@@ -42,11 +42,6 @@ public class ProposerPrepared extends PaxosHandler<Prepared> {
     private static final Logger LOG = LoggerFactory.getLogger(ProposerPrepared.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Prepared;
-    }
-
-    @Override
     public List<PaxosDescriptor> processMessage(Prepared receivedMessage, PaxosState state) {
 
         if (!state.getIsLeader() || state.getBallotProposer() != receivedMessage.getReplyBallot()) {

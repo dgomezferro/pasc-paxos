@@ -37,11 +37,6 @@ public class AcceptorPrepare extends PaxosHandler<Prepare> {
     private static final Logger LOG = LoggerFactory.getLogger(AcceptorPrepare.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Prepare;
-    }
-
-    @Override
     public List<PaxosDescriptor> processMessage(Prepare message, PaxosState state) {
 
         // check that the leader is newer than the last one by looking at the ballot number

@@ -31,11 +31,12 @@ import com.yahoo.pasc.paxos.messages.Reply;
 
 public class ReplyHandler implements MessageHandler<Reply, ClientState, Received.Descriptor> {
     
+    @SuppressWarnings("unused")
     private static final Logger LOG = LoggerFactory.getLogger(ReplyHandler.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Reply;
+    public boolean guardPredicate(Reply receivedMessage) {
+        return true;
     }
 
     @Override

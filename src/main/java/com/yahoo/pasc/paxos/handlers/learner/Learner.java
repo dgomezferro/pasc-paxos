@@ -36,11 +36,6 @@ public class Learner extends PaxosHandler<Accepted> {
     private static final Logger LOG = LoggerFactory.getLogger(Learner.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Accepted;
-    }
-
-    @Override
     public List<PaxosDescriptor> processMessage(Accepted message, PaxosState state) {
         long iid = message.getIid();
         long firstInstanceId = state.getFirstInstanceId();

@@ -27,13 +27,6 @@ import com.yahoo.pasc.paxos.state.PaxosState;
 
 public class LeadershipHandler extends PaxosHandler<LeadershipChange> {
 
-//    private static final Logger LOG = LoggerFactory.getLogger(LeadershipHandler.class);
-
-    @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof LeadershipChange;
-    }
-
     @Override
     public List<PaxosDescriptor> processMessage(LeadershipChange lc, PaxosState state) {
         List<PaxosDescriptor> descriptors = null;

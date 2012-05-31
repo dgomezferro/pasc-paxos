@@ -29,6 +29,11 @@ public abstract class PaxosHandler<M extends PaxosMessage>
     implements MessageHandler<M, PaxosState, PaxosDescriptor> {
 
     @Override
+    public boolean guardPredicate(M receivedMessage) {
+        return true;
+    };
+
+    @Override
     public List<Message> getSendMessages(PaxosState state, List<PaxosDescriptor> descriptors) {
         if (descriptors == null) 
             return null;

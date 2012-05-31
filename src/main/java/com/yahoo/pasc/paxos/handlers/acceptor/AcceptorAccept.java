@@ -38,11 +38,6 @@ public class AcceptorAccept extends PaxosHandler<Accept> {
     private static final Logger LOG = LoggerFactory.getLogger(ProposerRequest.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Accept;
-    }
-
-    @Override
     public List<PaxosDescriptor> processMessage(Accept message, PaxosState state) {
         if (state.getIsLeader())
             return null;

@@ -32,11 +32,6 @@ public class DigestHandler extends PaxosHandler<Digest> {
     private static final Logger LOG = LoggerFactory.getLogger(DigestHandler.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Digest;
-    }
-
-    @Override
     public List<PaxosDescriptor> processMessage(Digest digest, PaxosState state) {
         storeDigest(digest.getSenderId(), digest.getDigestId(), digest.getDigest(), state);
         return null;

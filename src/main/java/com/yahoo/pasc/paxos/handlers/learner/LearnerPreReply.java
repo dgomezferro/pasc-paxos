@@ -38,11 +38,6 @@ public class LearnerPreReply extends PaxosHandler<PreReply> {
     private static final Logger LOG = LoggerFactory.getLogger(LearnerPreReply.class);
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof PreReply;
-    }
-
-    @Override
     public List<PaxosDescriptor> processMessage(PreReply message, PaxosState state) {
         int clientId = message.getClientId();
         long timestamp = message.getTimestamp();

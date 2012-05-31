@@ -28,8 +28,8 @@ import com.yahoo.pasc.paxos.messages.Request;
 public class TimeoutHandler implements MessageHandler<Timeout, ClientState, Request> {
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Timeout;
+    public boolean guardPredicate(Timeout receivedMessage) {
+        return true;
     }
 
     @Override

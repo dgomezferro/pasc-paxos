@@ -29,8 +29,8 @@ import com.yahoo.pasc.paxos.messages.Request;
 public class SubmitHandler implements MessageHandler<Submit, ClientState, Request> {
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Submit;
+    public boolean guardPredicate(Submit receivedMessage) {
+        return true;
     }
 
     @Override

@@ -28,8 +28,8 @@ import com.yahoo.pasc.paxos.messages.Hello;
 public class HelloHandler implements MessageHandler<Hello, ClientState, Connected.Descriptor> {
 
     @Override
-    public boolean guardPredicate(Message receivedMessage) {
-        return receivedMessage instanceof Hello;
+    public boolean guardPredicate(Hello receivedMessage) {
+        return true;
     }
 
     @Override
