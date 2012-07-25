@@ -58,6 +58,7 @@ import com.yahoo.pasc.paxos.Barrier;
 import com.yahoo.pasc.paxos.client.messages.Received;
 import com.yahoo.pasc.paxos.client.messages.Submit;
 import com.yahoo.pasc.paxos.client.messages.Timeout;
+import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
 import com.yahoo.pasc.paxos.messages.Request;
@@ -155,6 +156,13 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         }
     }
 
+    @Override
+    public void submitControlMessage(byte[] controlMessage) {
+        ControlMessage cm = new ControlMessage(clientId, controlMessage);
+        cm.storeReplica(cm);
+        send(cm);
+    }
+
     private static final String ELECTION_PATH = "/pasc_election";
 
     public void start() throws KeeperException, InterruptedException {
@@ -250,10 +258,12 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
             if (m instanceof Connected) {
                 lastTime = System.nanoTime();
 
-                new Thread(new ThroughputMonitor()).start();
+//                new Thread(new ThroughputMonitor()).start();
 
                 clientInterface.connected();
             } else if (m instanceof Received) {
+                if (resubmit != null)
+                    resubmit.cancel();
                 ++messagesReceived;
                 if (messagesReceived % period == 0) {
                     long currentTime = System.nanoTime();

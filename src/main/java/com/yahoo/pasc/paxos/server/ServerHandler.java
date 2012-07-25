@@ -35,14 +35,16 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.messages.Accept;
+import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.DigestToSM;
 import com.yahoo.pasc.paxos.messages.Execute;
-import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.LeadershipChange;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.PreReply;
+import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.state.PaxosState;
+import com.yahoo.pasc.paxos.statemachine.ControlHandler;
 import com.yahoo.pasc.paxos.statemachine.Response;
 import com.yahoo.pasc.paxos.statemachine.StateMachine;
 
@@ -54,18 +56,21 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
     private ServerConnection serverConnection;
     private boolean startedMonitor = false;
     private StateMachine stateMachine;
+    private ControlHandler controlHandler;
 
-    public ServerHandler(PascRuntime<PaxosState> runtime, StateMachine stateMachine, ServerConnection serverConnection) {
+    public ServerHandler(PascRuntime<PaxosState> runtime, StateMachine stateMachine, ControlHandler controlHandler, 
+            ServerConnection serverConnection) {
         this.runtime = runtime;
         this.serverConnection = serverConnection;
         this.stateMachine = stateMachine;
+        this.controlHandler = controlHandler;
     }
 
     @Override
     public synchronized void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         if (!startedMonitor) {
             startedMonitor = true;
-            new Thread(new ThroughputMonitor()).start();
+//            new Thread(new ThroughputMonitor()).start();
         }
     }
 
@@ -81,6 +86,12 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
         PaxosMessage message = (PaxosMessage) e.getMessage();
         if (LOG.isTraceEnabled()) {
             LOG.trace("Message received {}", message);
+        }
+        if (message instanceof ControlMessage) {
+            if (controlHandler != null) {
+                controlHandler.handleControlMessage((ControlMessage) message);
+            }
+            return;
         }
         MessageType type = MessageType.getMessageType(message);
         long startTime = System.nanoTime();

@@ -67,4 +67,11 @@ public class AsyncMessage extends PaxosMessage implements CloneableDeep<AsyncMes
         }
         return (this.clientId == other.clientId && this.serverId == other.serverId && this.timestamp == other.timestamp);
     }
+
+    @Override
+    public String toString() {
+        return "AsyncMessage [clientId=" + clientId + ", serverId=" + serverId + ", timestamp=" + timestamp
+                + ", message=" + Arrays.toString(message) + "]";
+    }
+
 }

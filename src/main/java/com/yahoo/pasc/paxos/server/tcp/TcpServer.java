@@ -60,6 +60,7 @@ import com.yahoo.pasc.paxos.server.PipelineFactory;
 import com.yahoo.pasc.paxos.server.ServerConnection;
 import com.yahoo.pasc.paxos.server.ServerHandler;
 import com.yahoo.pasc.paxos.state.PaxosState;
+import com.yahoo.pasc.paxos.statemachine.ControlHandler;
 import com.yahoo.pasc.paxos.statemachine.StateMachine;
 
 public class TcpServer implements ServerConnection {
@@ -92,8 +93,9 @@ public class TcpServer implements ServerConnection {
 
     private Barrier barrier;
 
-    public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, String zk, String servers[], String clients[], int port,
-            int threads, final int id, boolean twoStages) throws IOException, KeeperException {
+    public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, ControlHandler controlHandler, String zk, 
+            String servers[], int port, int threads, final int id, boolean twoStages) 
+                    throws IOException, KeeperException {
         this.bossExecutor = Executors.newCachedThreadPool();
         this.workerExecutor = Executors.newCachedThreadPool();
         this.executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(1, 1024 * 1024,
@@ -112,7 +114,7 @@ public class TcpServer implements ServerConnection {
                         return new Thread(r, id + "-" + count++);
                     }
                 }));
-        this.channelHandler = new ServerHandler(runtime, sm, this);
+        this.channelHandler = new ServerHandler(runtime, sm, controlHandler, this);
         this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages);
         this.leaderElection = new LeaderElection(zk, id, this.channelHandler);
         this.barrier = new Barrier(new ZooKeeper(zk, 2000, leaderElection), "/paxos_srv_barrier", "" + id, servers.length);

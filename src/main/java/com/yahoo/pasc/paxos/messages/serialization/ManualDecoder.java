@@ -30,6 +30,7 @@ import com.yahoo.pasc.exceptions.InputMessageException;
 import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
+import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
@@ -94,6 +95,9 @@ public class ManualDecoder extends FrameDecoder {
         }
 
         if (result != crc) {
+            byte b = buf.readByte();
+            MessageType type = MessageType.values()[b];
+            LOG.error("Invalid CRC for {}. Expected {} Actual {}", new Object[] {type, crc, result});
             throw new InputMessageException("Invalid CRC", null, null);
         }
 
@@ -233,6 +237,15 @@ public class ManualDecoder extends FrameDecoder {
             AsyncMessage am = new AsyncMessage(clientId, serverId, ts, message);
             am.setCRC(crc);
             return am;
+        }
+        case CONTROL: {
+            int clientId = buf.readInt();
+            len = buf.readInt();
+            byte [] message = new byte [len];
+            buf.readBytes(message);
+            ControlMessage cm = new ControlMessage(clientId, message);
+            cm.setCRC(crc);
+            return cm;
         }
         }
         buf.resetReaderIndex();

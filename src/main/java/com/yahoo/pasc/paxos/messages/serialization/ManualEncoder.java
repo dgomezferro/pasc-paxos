@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
+import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.MessageType;
@@ -122,6 +123,10 @@ public class ManualEncoder implements ChannelDownstreamHandler {
             break;
         case ASYNC_MESSAGE:
             result += 20 + ((AsyncMessage) msg).getMessage().length;
+            break;
+        case CONTROL:
+            result += 8 + ((ControlMessage) msg).getControlMessage().length;
+            break;
         }
         return result;
     }
@@ -256,6 +261,13 @@ public class ManualEncoder implements ChannelDownstreamHandler {
             buffer.writeLong(am.getTimestamp());
             buffer.writeInt(am.getMessage().length);
             buffer.writeBytes(am.getMessage());
+            break;
+        }
+        case CONTROL: {
+            ControlMessage cm = (ControlMessage) msg;
+            buffer.writeInt(cm.getClientId());
+            buffer.writeInt(cm.getControlMessage().length);
+            buffer.writeBytes(cm.getControlMessage());
             break;
         }
         default:

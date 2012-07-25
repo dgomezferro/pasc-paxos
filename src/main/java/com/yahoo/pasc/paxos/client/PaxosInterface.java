@@ -17,6 +17,7 @@
 package com.yahoo.pasc.paxos.client;
 
 public interface PaxosInterface {
+    public void submitNewRequest(byte[] request);
 
-    public void submitNewRequest(byte [] request);
+    public void submitControlMessage(byte[] controlMessage);
 }

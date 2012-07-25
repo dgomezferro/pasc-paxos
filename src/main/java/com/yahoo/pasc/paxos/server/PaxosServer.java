@@ -67,7 +67,7 @@ public class PaxosServer {
             Option id           = new Option("i", true, "client id");
             Option port         = new Option("p", true, "port used by server");
             Option buffer       = new Option("b", true, "number of batched messages");
-            Option clients      = new Option("c", true, "clients (hostname:port,...)");
+//            Option clients      = new Option("c", true, "clients (hostname:port,...)");
             Option servers      = new Option("s", true, "servers (hostname:port,...)");
             Option maxInstances = new Option("m", true, "max number of instances");
             Option anm          = new Option("a", false, "protection against ANM faults");
@@ -83,7 +83,7 @@ public class PaxosServer {
             Option zookeeper    = new Option("z", true, "zookeeper connection string");
             
             options = new Options();
-            options.addOption(id).addOption(port).addOption(buffer).addOption(clients).addOption(servers)
+            options.addOption(id).addOption(port).addOption(buffer).addOption(servers)
                     .addOption(threads).addOption(anm).addOption(udp).addOption(maxInstances) //.addOption(leader)
                     .addOption(cWindow).addOption(digests).addOption(ckPeriod).addOption(inlineThresh)
                     .addOption(twoStages).addOption(digestQuorum).addOption(leaderReplies).addOption(zookeeper);
@@ -94,7 +94,7 @@ public class PaxosServer {
             line = parser.parse(options, args);
             
             String serverAddresses[] = line.hasOption('s') ? line.getOptionValue('s').split(",") : new String[] { "10.78.36.104:20548", "10.78.36.104:20748" };
-            String clientAddresses[] = line.hasOption('c') ? line.getOptionValue('c').split(",") : new String[] { "localhost:9000" };
+//            String clientAddresses[] = line.hasOption('c') ? line.getOptionValue('c').split(",") : new String[] { "localhost:9000" };
             String zookeeper         = line.hasOption('z') ? line.getOptionValue('z') : "localhost:2181";
             int serverId             = line.hasOption('i') ? Integer.parseInt(line.getOptionValue('i')) : 0;
             int batchSize            = line.hasOption('b') ? Integer.parseInt(line.getOptionValue('b')) : 1;
@@ -138,9 +138,10 @@ public class PaxosServer {
             runtime.addHandler(LeadershipChange.class, new LeadershipHandler());
 
             if (udp) {
-                new UdpServer(runtime, serverAddresses, clientAddresses, port, threads, serverId).run();
+                new UdpServer(runtime, serverAddresses, null, port, threads, serverId).run();
             } else {
-                new TcpServer(runtime, new EmptyStateMachine(), zookeeper, serverAddresses, clientAddresses, port, threads, serverId, twoStages).run();
+                new TcpServer(runtime, new EmptyStateMachine(), null, zookeeper, serverAddresses, 
+                        port, threads, serverId, twoStages).run();
             }
         } catch (Exception e) {
             HelpFormatter formatter = new HelpFormatter();

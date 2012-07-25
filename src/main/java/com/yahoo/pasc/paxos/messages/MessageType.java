@@ -19,7 +19,7 @@ package com.yahoo.pasc.paxos.messages;
 public enum MessageType {
 
     REQUEST, INLINEREQ, REPLY, ACCEPT, ACCEPTED, DIGEST, EXECUTE, PREREPLY, HELLO, PREPARE, PREPARED, LEAD_CHANGE,
-    ASYNC_MESSAGE;
+    ASYNC_MESSAGE, CONTROL;
     
     public static MessageType getMessageType(PaxosMessage m) {
         if (m instanceof InlineRequest)
@@ -48,6 +48,8 @@ public enum MessageType {
             return LEAD_CHANGE;
         if (m instanceof AsyncMessage)
             return ASYNC_MESSAGE;
+        if (m instanceof ControlMessage)
+            return CONTROL;
         throw new IllegalArgumentException("Unknown message type: " + m);
     }
 }

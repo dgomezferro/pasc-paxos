@@ -62,7 +62,7 @@ public abstract class PaxosMessage extends Message implements Serializable {
 //        return copy;
     }
 
-    public long computeCRC(Message m, byte [] bytearray) {
+    private long computeCRC(byte [] bytearray) {
         Checksum crc32 = CRC32Pool.getCRC32();
         crc32.reset();
         
@@ -80,7 +80,7 @@ public abstract class PaxosMessage extends Message implements Serializable {
     private long computeCRC(Message m) {
         ChannelBuffer bytecopy = getSerializedMessage(m);
         byte [] bytearray = bytecopy.array();
-        return computeCRC(m, bytearray);
+        return computeCRC(bytearray);
     }
 
     @Override
