@@ -59,11 +59,7 @@ public class ProposerRequest extends PaxosHandler<Request> {
         long repTs = state.getReplyCacheTimestampElement(clientId);
         if (repTs >= timestamp) {
             LOG.trace("We hit the reply cache for client {} with timestamp {}.", clientId, timestamp);
-            if (state.getIsLeader()) {
-                return null;
-            } else {
-                return Arrays.<PaxosDescriptor> asList(new Reply.Descriptor(clientId));
-            }
+            return Arrays.<PaxosDescriptor> asList(new Reply.Descriptor(clientId));
         }
 
         IidRequest request;

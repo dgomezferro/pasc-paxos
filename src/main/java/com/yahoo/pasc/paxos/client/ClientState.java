@@ -32,8 +32,9 @@ public class ClientState implements ProcessState {
     long timestamp = -1;
     Request pendingRequest;
     BitSet acks = new BitSet();
-    byte[] value;
+//    byte[] value;
     private int from;
+    ReplyStore replyStore;
 
     public ClientState(int clientId, int servers, int quorum, int inlineThreshold, int asyncMessages) {
         this.clientId = clientId;
@@ -41,6 +42,7 @@ public class ClientState implements ProcessState {
         this.quorum = quorum;
         this.inlineThreshold = inlineThreshold;
         this.asyncMessages = new TimestampMessage[asyncMessages];
+        this.replyStore = new ReplyStore(servers);
     }
 
     public int getClientId() {
@@ -106,17 +108,25 @@ public class ClientState implements ProcessState {
     public void setInlineThreshold(int inlineThreshold) {
         this.inlineThreshold = inlineThreshold;
     }
-
-    public byte[] getValue() {
-        return value;
-    }
-
-    public void setValue(byte[] value) {
-        this.value = value;
-    }
+//
+//    public byte[] getValue() {
+//        return value;
+//    }
+//
+//    public void setValue(byte[] value) {
+//        this.value = value;
+//    }
 
     public void setFrom(int serverId) {
         this.from = serverId;
+    }
+
+    public ReplyStore getReplyStore() {
+        return replyStore;
+    }
+
+    public void setReplyStore(ReplyStore replyStore) {
+        this.replyStore = replyStore;
     }
 
     public int getFrom() {

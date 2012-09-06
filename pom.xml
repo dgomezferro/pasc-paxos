@@ -68,28 +68,6 @@
   		<scope>compile</scope>
   	</dependency>
   	<dependency>
-  		<groupId>org.apache.zookeeper</groupId>
-  		<artifactId>zookeeper</artifactId>
-  		<version>3.3.3</version>
-  		<type>jar</type>
-  		<scope>compile</scope>
-  		<exclusions>
-            <exclusion>
-                <groupId>com.sun.jmx</groupId>
-                <artifactId>jmxri</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.sun.jdmk</groupId>
-                <artifactId>jmxtools</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>javax.jms</groupId>
-                <artifactId>jms</artifactId>
-            </exclusion>
-        </exclusions>
-  		
-  	</dependency>
-  	<dependency>
   		<groupId>org.jboss.netty</groupId>
   		<artifactId>netty</artifactId>
   		<version>3.2.5.Final</version>
@@ -127,6 +105,13 @@
   		<groupId>org.slf4j</groupId>
   		<artifactId>slf4j-api</artifactId>
   		<version>1.6.2</version>
+  		<type>jar</type>
+  		<scope>compile</scope>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.zookeeper</groupId>
+  		<artifactId>zookeeper</artifactId>
+  		<version>3.4.3</version>
   		<type>jar</type>
   		<scope>compile</scope>
   	</dependency>
