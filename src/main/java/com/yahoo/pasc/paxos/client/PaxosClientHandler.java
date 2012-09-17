@@ -166,7 +166,6 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     private static final String ELECTION_PATH = "/pasc_election";
 
     public void start() throws KeeperException, InterruptedException {
-        leader = getLeadership(zk.getChildren(ELECTION_PATH, this));
         new Thread(new ConnectionThread()).start();
     }
 
