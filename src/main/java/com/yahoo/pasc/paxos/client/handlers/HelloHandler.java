@@ -22,10 +22,9 @@ import java.util.List;
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.MessageHandler;
 import com.yahoo.pasc.paxos.client.ClientState;
-import com.yahoo.pasc.paxos.client.Connected;
 import com.yahoo.pasc.paxos.messages.Hello;
 
-public class HelloHandler implements MessageHandler<Hello, ClientState, Connected> {
+public class HelloHandler implements MessageHandler<Hello, ClientState, Hello> {
 
     @Override
     public boolean guardPredicate(Hello receivedMessage) {
@@ -33,23 +32,15 @@ public class HelloHandler implements MessageHandler<Hello, ClientState, Connecte
     }
 
     @Override
-    public List<Connected> processMessage(Hello hello, ClientState state) {
-        List<Connected> descriptors = null;
-        int connected = state.getConnected();
-        connected++;
-        state.setConnected(connected);
-        if (connected == state.getServers()) {
-            // Send the first message if connected to all servers
-            descriptors = Arrays.asList(new Connected());
-        }
-        return descriptors;
+    public List<Hello> processMessage(Hello hello, ClientState state) {
+        state.setPendingHello(hello);
+        state.setConnected(0);
+        state.setDisconnected(0);
+        return Arrays.asList(hello);
     }
 
     @Override
-    public List<Message> getOutputMessages(ClientState state, List<Connected> descriptors) {
-        if (descriptors != null && descriptors.size() > 0) {
-            return Arrays.<Message> asList(new Connected());
-        }
-        return null;
+    public List<Message> getOutputMessages(ClientState state, List<Hello> messages) {
+        return Arrays.<Message>asList(messages.get(0));
     }
 }

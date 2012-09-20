@@ -31,15 +31,19 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.client.handlers.AsyncMessageHandler;
+import com.yahoo.pasc.paxos.client.handlers.ByeHandler;
 import com.yahoo.pasc.paxos.client.handlers.HelloHandler;
 import com.yahoo.pasc.paxos.client.handlers.ReplyHandler;
+import com.yahoo.pasc.paxos.client.handlers.ServerHelloHandler;
 import com.yahoo.pasc.paxos.client.handlers.SubmitHandler;
 import com.yahoo.pasc.paxos.client.handlers.TimeoutHandler;
 import com.yahoo.pasc.paxos.client.messages.Submit;
 import com.yahoo.pasc.paxos.client.messages.Timeout;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
+import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.Reply;
+import com.yahoo.pasc.paxos.messages.ServerHello;
 
 public class PaxosClient {
     public static void main(String[] args) throws Exception {
@@ -96,11 +100,13 @@ public class PaxosClient {
 
             String [] serverHosts = host.split(",");
             
-            HelloHandler hello = new HelloHandler();
+            ServerHelloHandler shello = new ServerHelloHandler();
             ReplyHandler reply = new ReplyHandler();
             SubmitHandler submit = new SubmitHandler();
             TimeoutHandler tout = new TimeoutHandler();
             AsyncMessageHandler asyncm = new AsyncMessageHandler();
+            ByeHandler bye = new ByeHandler();
+            HelloHandler hello = new HelloHandler();
             
             Random rnd = new Random();
             
@@ -109,11 +115,13 @@ public class PaxosClient {
                 ClientState clientState = new ClientState(clientId, servers, quorum, inlineThreshold, asynSize);
                 final PascRuntime<ClientState> runtime = new PascRuntime<ClientState>(protection);
                 runtime.setState(clientState);
-                runtime.addHandler(Hello.class, hello);
+                runtime.addHandler(ServerHello.class, shello);
                 runtime.addHandler(Reply.class, reply);
                 runtime.addHandler(Submit.class, submit);
                 runtime.addHandler(Timeout.class, tout);
                 runtime.addHandler(AsyncMessage.class, asyncm);
+                runtime.addHandler(Bye.class, bye);
+                runtime.addHandler(Hello.class, hello);
                 
                 final PaxosClientHandler handler = new PaxosClientHandler(runtime, new SimpleClient(requestSize), 
                         serverHosts, clientId, clients, timeout, zkConnection, executor);

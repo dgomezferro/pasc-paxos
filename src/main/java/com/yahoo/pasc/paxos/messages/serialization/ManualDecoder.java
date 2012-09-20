@@ -30,6 +30,7 @@ import com.yahoo.pasc.exceptions.InputMessageException;
 import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
+import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
@@ -40,6 +41,7 @@ import com.yahoo.pasc.paxos.messages.Prepare;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
 import com.yahoo.pasc.paxos.messages.Request;
+import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.state.ClientTimestamp;
 import com.yahoo.pasc.paxos.state.DigestidDigest;
 import com.yahoo.pasc.paxos.state.InstanceRecord;
@@ -69,7 +71,7 @@ public class ManualDecoder extends FrameDecoder {
 
         int length = buf.readInt();
         length -= 4; // length has already been read
-
+        
         if (buf.readableBytes() < length) {
             buf.resetReaderIndex();
             return null;
@@ -77,6 +79,10 @@ public class ManualDecoder extends FrameDecoder {
 
         long crc = buf.readLong();
         length -= 8; // crc has been read
+
+        if (length == 0) {
+            LOG.warn("Length is 0.");
+        }
 
         byte[] bytearray = new byte[length];
         buf.markReaderIndex();
@@ -179,6 +185,16 @@ public class ManualDecoder extends FrameDecoder {
         }
         case HELLO: {
             Hello h = new Hello(buf.readInt());
+            h.setCRC(crc);
+            return h;
+        }
+        case SERVERHELLO: {
+            ServerHello h = new ServerHello(buf.readInt(), buf.readInt());
+            h.setCRC(crc);
+            return h;
+        }
+        case BYE: {
+            Bye h = new Bye(buf.readInt(), buf.readInt());
             h.setCRC(crc);
             return h;
         }

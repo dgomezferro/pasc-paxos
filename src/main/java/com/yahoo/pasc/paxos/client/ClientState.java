@@ -19,6 +19,7 @@ package com.yahoo.pasc.paxos.client;
 import java.util.BitSet;
 
 import com.yahoo.pasc.ProcessState;
+import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.Request;
 
 public class ClientState implements ProcessState {
@@ -26,11 +27,13 @@ public class ClientState implements ProcessState {
     int servers;
     int quorum;
     int connected;
+    int disconnected;
     int inlineThreshold;
     TimestampMessage asyncMessages [];
 
     long timestamp = -1;
     Request pendingRequest;
+    Hello pendingHello;
     BitSet acks = new BitSet();
 //    byte[] value;
     private int from;
@@ -77,6 +80,14 @@ public class ClientState implements ProcessState {
         this.connected = connected;
     }
 
+    public int getDisconnected() {
+        return disconnected;
+    }
+
+    public void setDisconnected(int disconnected) {
+        this.disconnected = disconnected;
+    }
+
     public long getTimestamp() {
         return timestamp;
     }
@@ -91,6 +102,14 @@ public class ClientState implements ProcessState {
 
     public void setPendingRequest(Request pendingRequest) {
         this.pendingRequest = pendingRequest;
+    }
+
+    public Hello getPendingHello() {
+        return pendingHello;
+    }
+
+    public void setPendingHello(Hello pendingHello) {
+        this.pendingHello = pendingHello;
     }
 
     public BitSet getAcks() {

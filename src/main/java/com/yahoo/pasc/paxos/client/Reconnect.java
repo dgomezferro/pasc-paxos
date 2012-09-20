@@ -14,21 +14,20 @@
  * limitations under the License. See accompanying LICENSE file.
  */
 
-package com.yahoo.pasc.paxos.server;
-
-import java.io.IOException;
-import java.util.List;
-
-import org.jboss.netty.channel.Channel;
+package com.yahoo.pasc.paxos.client;
 
 import com.yahoo.pasc.Message;
 
-public interface ServerConnection {
-    public void forward(List<Message> message);
+public class Reconnect extends Message {
 
-    public void addClient(int clientId, Channel channel);
+    @Override
+    protected boolean verify() {
+        return true;
+    }
 
-    public void run() throws IOException;
+    @Override
+    public void storeReplica(Message m) {
 
-    public void close() throws IOException;
+    }
+
 }

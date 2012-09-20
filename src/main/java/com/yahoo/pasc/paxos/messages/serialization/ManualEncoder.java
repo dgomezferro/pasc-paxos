@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
+import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
@@ -40,6 +41,7 @@ import com.yahoo.pasc.paxos.messages.Prepare;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
 import com.yahoo.pasc.paxos.messages.Request;
+import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.state.ClientTimestamp;
 import com.yahoo.pasc.paxos.state.InstanceRecord;
 
@@ -115,6 +117,12 @@ public class ManualEncoder implements ChannelDownstreamHandler {
         case HELLO:
             result += 4;
             break;
+        case SERVERHELLO:
+            result += 8;
+            break;
+        case BYE:
+            result += 8;
+            break;
         case PREPARE:
             result += 16;
             break;
@@ -127,6 +135,8 @@ public class ManualEncoder implements ChannelDownstreamHandler {
         case CONTROL:
             result += 8 + ((ControlMessage) msg).getControlMessage().length;
             break;
+        default:
+            throw new RuntimeException("unknown size for message " + msg + " with type " + type);
         }
         return result;
     }
@@ -145,7 +155,7 @@ public class ManualEncoder implements ChannelDownstreamHandler {
 
         switch (type) {
         case REQUEST:
-        case INLINEREQ:{
+        case INLINEREQ: {
             Request s = (Request) msg;
             buffer.writeInt(s.getClientId());
             buffer.writeLong(s.getTimestamp());
@@ -174,7 +184,7 @@ public class ManualEncoder implements ChannelDownstreamHandler {
                 buffer.writeInt(-1);
             } else {
                 buffer.writeInt(requests.length);
-                for (byte [] request : requests) {
+                for (byte[] request : requests) {
                     if (request == null) {
                         buffer.writeInt(-1);
                     } else {
@@ -214,6 +224,18 @@ public class ManualEncoder implements ChannelDownstreamHandler {
             buffer.writeInt(h.getClientId());
             break;
         }
+        case SERVERHELLO: {
+            ServerHello h = (ServerHello) msg;
+            buffer.writeInt(h.getClientId());
+            buffer.writeInt(h.getServerId());
+            break;
+        }
+        case BYE: {
+            Bye b = (Bye) msg;
+            buffer.writeInt(b.getClientId());
+            buffer.writeInt(b.getServerId());
+            break;
+        }
         case PREPARE: {
             Prepare p = (Prepare) msg;
             buffer.writeInt(p.getSenderId());
@@ -228,22 +250,22 @@ public class ManualEncoder implements ChannelDownstreamHandler {
             buffer.writeInt(pd.getReplyBallot());
 
             buffer.writeInt(pd.getAcceptedSize());
-            InstanceRecord [] accepted = pd.getAcceptedReqs();
-            for (int i = 0; i < pd.getAcceptedSize(); i++){
+            InstanceRecord[] accepted = pd.getAcceptedReqs();
+            for (int i = 0; i < pd.getAcceptedSize(); i++) {
                 InstanceRecord currAccepted = accepted[i];
                 buffer.writeLong(currAccepted.getIid());
                 buffer.writeInt(currAccepted.getBallot());
                 buffer.writeInt(currAccepted.getArraySize());
                 ClientTimestamp[] ct = currAccepted.getClientTimestamps();
-                for (int j = 0; j < currAccepted.getArraySize(); j++){
+                for (int j = 0; j < currAccepted.getArraySize(); j++) {
                     buffer.writeInt(ct[j].getClientId());
                     buffer.writeLong(ct[j].getTimestamp());
                 }
             }
 
             buffer.writeInt(pd.getLearnedSize());
-            Accept [] learned = pd.getLearnedReqs();
-            for (int i = 0; i < pd.getLearnedSize(); i++){
+            Accept[] learned = pd.getLearnedReqs();
+            for (int i = 0; i < pd.getLearnedSize(); i++) {
                 Accept currLearned = learned[i];
                 encode(currLearned, true, ManualEncoder.getSize(currLearned, true), buffer);
             }

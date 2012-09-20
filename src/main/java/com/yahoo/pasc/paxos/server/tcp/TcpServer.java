@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -51,9 +52,11 @@ import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.Barrier;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
+import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
+import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.messages.serialization.ManualEncoder;
 import com.yahoo.pasc.paxos.server.LeaderElection;
 import com.yahoo.pasc.paxos.server.PipelineFactory;
@@ -64,7 +67,7 @@ import com.yahoo.pasc.paxos.statemachine.ControlHandler;
 import com.yahoo.pasc.paxos.statemachine.StateMachine;
 
 public class TcpServer implements ServerConnection {
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(TcpServer.class);
 
     private String servers[];
@@ -74,13 +77,14 @@ public class TcpServer implements ServerConnection {
     private ExecutorService workerExecutor;
 
     private ChannelGroup serverChannels = new DefaultChannelGroup("servers");
-    private ConcurrentMap<Integer, Channel> indexedServerChannels = new ConcurrentHashMap<Integer, Channel>(1024, 0.75f, 32);
+    private ConcurrentMap<Integer, Channel> indexedServerChannels = new ConcurrentHashMap<Integer, Channel>(1024,
+            0.75f, 32);
     private ConcurrentMap<Integer, Channel> clientChannels = new ConcurrentHashMap<Integer, Channel>(1024, 0.75f, 32);
 
     private int port;
     private int threads;
     private int id;
-    
+
     private EncoderEmbedder<ChannelBuffer> embedder = new EncoderEmbedder<ChannelBuffer>(new ManualEncoder());
 
     private Channel serverChannel;
@@ -93,20 +97,18 @@ public class TcpServer implements ServerConnection {
 
     private Barrier barrier;
 
-    public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, ControlHandler controlHandler, String zk, 
-            String servers[], int port, int threads, final int id, boolean twoStages) 
-                    throws IOException, KeeperException {
+    public TcpServer(PascRuntime<PaxosState> runtime, StateMachine sm, ControlHandler controlHandler, String zk,
+            String servers[], int port, int threads, final int id, boolean twoStages) throws IOException,
+            KeeperException {
         this.bossExecutor = Executors.newCachedThreadPool();
         this.workerExecutor = Executors.newCachedThreadPool();
         this.executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(1, 1024 * 1024,
-                1024 * 1024 * 1024, 10, TimeUnit.SECONDS,
-                new ObjectSizeEstimator() {
+                1024 * 1024 * 1024, 10, TimeUnit.SECONDS, new ObjectSizeEstimator() {
                     @Override
                     public int estimateSize(Object o) {
                         return 1024;
                     }
-                },
-                new ThreadFactory() {
+                }, new ThreadFactory() {
                     private int count = 0;
 
                     @Override
@@ -117,7 +119,8 @@ public class TcpServer implements ServerConnection {
         this.channelHandler = new ServerHandler(runtime, sm, controlHandler, this);
         this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages);
         this.leaderElection = new LeaderElection(zk, id, this.channelHandler);
-        this.barrier = new Barrier(new ZooKeeper(zk, 2000, leaderElection), "/paxos_srv_barrier", "" + id, servers.length);
+        this.barrier = new Barrier(new ZooKeeper(zk, 2000, leaderElection), "/paxos_srv_barrier", "" + id,
+                servers.length);
         this.servers = servers;
         this.port = port;
         this.threads = threads;
@@ -149,7 +152,7 @@ public class TcpServer implements ServerConnection {
             if (msg == null) {
                 continue;
             }
-            
+
             if (msg instanceof Reply) {
                 Reply reply = (Reply) msg;
                 int clientId = reply.getClientId();
@@ -172,17 +175,26 @@ public class TcpServer implements ServerConnection {
                 embedder.offer(asyncMessage);
                 ChannelBuffer encoded = embedder.poll();
                 clientChannel.write(encoded);
-            } else if (msg instanceof Hello) {
-                Hello hello = (Hello) msg;
+            } else if (msg instanceof ServerHello) {
+                ServerHello hello = (ServerHello) msg;
                 int clientId = hello.getClientId();
-                hello.setClientId(id);
-                hello.storeReplica(hello);
                 Channel clientChannel = clientChannels.get(clientId);
                 if (clientChannel == null) {
                     LOG.error("Client {} not yet connected. Cannot send reply.", clientId);
                     continue;
                 }
                 embedder.offer(hello);
+                ChannelBuffer encoded = embedder.poll();
+                clientChannel.write(encoded);
+            } else if (msg instanceof Bye) {
+                Bye bye = (Bye) msg;
+                int clientId = bye.getClientId();
+                Channel clientChannel = clientChannels.get(clientId);
+                if (clientChannel == null) {
+                    LOG.error("Client {} not yet connected. Cannot send reply.", clientId);
+                    continue;
+                }
+                embedder.offer(bye);
                 ChannelBuffer encoded = embedder.poll();
                 clientChannel.write(encoded);
             } else if (msg instanceof Prepared) {
@@ -201,20 +213,28 @@ public class TcpServer implements ServerConnection {
                 ChannelBuffer encoded = embedder.poll();
                 serverChannels.write(encoded);
             }
-            
+
         }
     }
-    
+
     @Override
     public void addClient(int clientId, Channel channel) {
-        if (!clientChannels.containsKey(clientId)) {
+        if (clientChannels.containsKey(clientId)) {
+            Bye bye = new Bye(clientId, id);
+            bye.storeReplica(bye);
+            forward(Arrays.<Message> asList(bye));
+        } else {
             LOG.debug("Adding client " + clientId + " " + channel);
             clientChannels.put(clientId, channel);
+            ServerHello sh = new ServerHello(clientId, id);
+            sh.storeReplica(sh);
+            forward(Arrays.<Message> asList(sh));
         }
     }
 
     private void startServer() {
-        ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutor, workerExecutor, threads));
+        ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutor, workerExecutor,
+                threads));
 
         bootstrap.setPipelineFactory(channelPipelineFactory);
 
@@ -225,7 +245,7 @@ public class TcpServer implements ServerConnection {
         try {
             LOG.warn("Bound :" + serverChannel + " at " + InetAddress.getLocalHost().getHostName());
         } catch (UnknownHostException e) {
-            //ignore
+            // ignore
         }
     }
 
@@ -267,7 +287,7 @@ public class TcpServer implements ServerConnection {
         }
 
     }
-    
+
     @Override
     public void close() throws IOException {
         serverChannel.close();

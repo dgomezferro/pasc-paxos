@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -32,7 +33,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooKeeper;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.Channel;
@@ -62,12 +62,14 @@ import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
 import com.yahoo.pasc.paxos.messages.Request;
+import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.messages.serialization.ManualDecoder;
 import com.yahoo.pasc.paxos.messages.serialization.ManualEncoder;
 
 public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements PaxosInterface, Watcher {
 
     private static final Logger LOG = LoggerFactory.getLogger(PaxosClientHandler.class);
+    private static final int MAX_CLIENTS = 4096;
 
     private int clientId;
     private int clients;
@@ -107,6 +109,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         this.servers = servers;
         this.serverChannels = new Channel[servers.length];
         Arrays.fill(payload, (byte) 5);
+        generateClientId();
         for (int i = 0; i < servers.length; ++i) {
             tryConnect(i);
         }
@@ -171,8 +174,17 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
 
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() != EventType.NodeChildrenChanged)
+        switch (event.getType()) {
+        case NodeChildrenChanged:
+        case None:
+            break;
+        default:
             return;
+        }
+        
+        if (event.getState() != Watcher.Event.KeeperState.SyncConnected) {
+            return;
+        }
 
         try {
             leader = getLeadership(zk.getChildren(ELECTION_PATH, this));
@@ -230,12 +242,23 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
             timer.schedule(resubmit, timeout);
         }
     }
+    
+    private Random random = new Random();
+
+    private void generateClientId() {
+        clientId = random.nextInt(MAX_CLIENTS);
+    }
+    
+    private void sendHello(Channel c) {
+        Hello hello = new Hello(clientId);
+        hello.storeReplica(hello);
+        runtime.handleMessage(hello);
+        c.write(hello);
+    }
 
     @Override
     public synchronized void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-        Hello hello = new Hello(clientId);
-        hello.storeReplica(hello);
-        e.getChannel().write(hello);
+        sendHello(e.getChannel());
     }
 
     private long messagesReceived = 0;
@@ -245,9 +268,10 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     @Override
     public synchronized void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
         Object message = e.getMessage();
-        if (message instanceof Hello) {
-            Hello hello = (Hello) e.getMessage();
-            serverChannels[hello.getClientId()] = e.getChannel();
+        if (message instanceof ServerHello) {
+            ServerHello hello = (ServerHello) e.getMessage();
+            serverChannels[hello.getServerId()] = e.getChannel();
+            LOG.warn("Received hello: " + message);
         }
         LOG.trace("Received {}", message);
         List<Message> messages = runtime.handleMessage((Message) message);
@@ -257,9 +281,15 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
             if (m instanceof Connected) {
                 lastTime = System.nanoTime();
 
-//                new Thread(new ThroughputMonitor()).start();
+                // new Thread(new ThroughputMonitor()).start();
 
                 clientInterface.connected();
+            } else if (m instanceof Reconnect) {
+                generateClientId();
+                for (Channel c : serverChannels) {
+                    if (c != null)
+                        sendHello(c);
+                }
             } else if (m instanceof Received) {
                 if (resubmit != null)
                     resubmit.cancel();
@@ -434,22 +464,23 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
                 }
                 System.out.println(String.format("Throughput: %8.8f m/s", (messagesReceived - startMessagges)
                         / ((double) (System.currentTimeMillis() - startTime) / 1000)));
-                System.out.println(String.format("Latency: %4.4f ms", (totalTime / (double) latencyReceived) / 1000000));
+                System.out
+                        .println(String.format("Latency: %4.4f ms", (totalTime / (double) latencyReceived) / 1000000));
 
                 barrier.close();
-    
+
                 for (Channel c : serverChannels) {
                     if (c != null) {
                         c.close();
                     }
                 }
-    
+
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     // ignore
                 }
-    
+
                 System.exit(0);
             } catch (KeeperException e) {
                 LOG.error("Couldn't measure throughput", e);

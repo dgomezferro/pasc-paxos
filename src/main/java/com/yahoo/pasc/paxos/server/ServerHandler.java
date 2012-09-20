@@ -35,14 +35,16 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.messages.Accept;
+import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.DigestToSM;
 import com.yahoo.pasc.paxos.messages.Execute;
+import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.LeadershipChange;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.PreReply;
-import com.yahoo.pasc.paxos.messages.Hello;
+import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.state.PaxosState;
 import com.yahoo.pasc.paxos.statemachine.ControlHandler;
 import com.yahoo.pasc.paxos.statemachine.Response;
@@ -108,7 +110,6 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
             if (message instanceof Hello) {
                 Hello r = (Hello) e.getMessage();
                 serverConnection.addClient(r.getClientId(), e.getChannel());
-                serverConnection.forward(Arrays.<Message> asList(r));
                 return;
             } else if (message instanceof Accept) {
                 accepts++;
