@@ -139,7 +139,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     }
 
     @Override
-    public void submitNewRequest(byte[] request) {
+    public synchronized void submitNewRequest(byte[] request) {
         if (resubmit != null)
             resubmit.cancel();
         List<Message> messages = runtime.handleMessage(new Submit(request));
@@ -160,7 +160,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     }
 
     @Override
-    public void submitControlMessage(byte[] controlMessage) {
+    public synchronized void submitControlMessage(byte[] controlMessage) {
         ControlMessage cm = new ControlMessage(clientId, controlMessage);
         cm.storeReplica(cm);
         send(cm);
