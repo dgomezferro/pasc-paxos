@@ -48,7 +48,7 @@ public class ServerHelloHandler implements MessageHandler<ServerHello, ClientSta
         connected++;
         state.setConnected(connected);
         if (connected == state.getQuorum()  ) {
-            LOG.warn("Connected");
+            LOG.debug("Connected");
             state.setClientId(hello.getClientId());
             // Send the first message if connected to all servers
             descriptors = Arrays.asList(new Connected());

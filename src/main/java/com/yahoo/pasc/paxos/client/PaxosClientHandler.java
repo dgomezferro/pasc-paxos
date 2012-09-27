@@ -271,7 +271,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         if (message instanceof ServerHello) {
             ServerHello hello = (ServerHello) e.getMessage();
             serverChannels[hello.getServerId()] = e.getChannel();
-            LOG.warn("Received hello: " + message);
+            LOG.debug("Received hello: " + message);
         }
         LOG.trace("Received {}", message);
         List<Message> messages = runtime.handleMessage((Message) message);
