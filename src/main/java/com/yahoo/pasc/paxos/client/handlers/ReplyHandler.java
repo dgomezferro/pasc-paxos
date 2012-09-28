@@ -53,7 +53,6 @@ public class ReplyHandler implements MessageHandler<Reply, ClientState, Received
             byte[] value = store.getStableReply(quorum);
             if (value != null) {
                 descriptors = Arrays.asList(new Received.Descriptor(value));
-                state.setReplyStore(new ReplyStore(state.getServers()));
             }
         }
         return descriptors;

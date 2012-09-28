@@ -22,6 +22,7 @@ import java.util.List;
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.MessageHandler;
 import com.yahoo.pasc.paxos.client.ClientState;
+import com.yahoo.pasc.paxos.client.ReplyStore;
 import com.yahoo.pasc.paxos.client.messages.Submit;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
 import com.yahoo.pasc.paxos.messages.Request;
@@ -45,6 +46,7 @@ public class SubmitHandler implements MessageHandler<Submit, ClientState, Reques
         }
         state.setPendingRequest(request);
         state.setTimestamp(timestamp);
+        state.setReplyStore(new ReplyStore(state.getServers()));
         return Arrays.asList(request);
     }
 
