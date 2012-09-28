@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.CloneableDeep;
 import com.yahoo.pasc.EqualsDeep;
+import com.yahoo.pasc.paxos.messages.Reply;
 
 public class ReplyStore implements CloneableDeep<ReplyStore>, EqualsDeep<ReplyStore> {
 
@@ -42,20 +43,20 @@ public class ReplyStore implements CloneableDeep<ReplyStore>, EqualsDeep<ReplySt
         this.size = 0;
     }
 
-    public void addRemote(int senderId, byte[] reply) {
+    public void addRemote(int senderId, Reply reply) {
         if (!senders.get(senderId)) {
             senders.set(senderId);
             int i = 0;
             for (; i < size; ++i) {
-                if (Arrays.equals(replies[i], reply)) {
+                if (Arrays.equals(replies[i], reply.getValue())) {
                     counts[i]++;
                     return;
                 } else {
-                    LOG.warn("State divergence adding reply. \n Stored: {} \n Received: {}",
-                            Arrays.toString(replies[i]), Arrays.toString(reply));
+                    LOG.warn("State divergence adding reply. \n Stored: {} \n Received: {} \n Reply: {}",
+                            new Object[] {Arrays.toString(replies[i]), Arrays.toString(reply.getValue()), reply});
                 }
             }
-            replies[i] = reply;
+            replies[i] = reply.getValue();
             counts[i] = 1;
             size++;
         }

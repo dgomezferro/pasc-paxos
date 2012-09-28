@@ -49,7 +49,7 @@ public class ReplyHandler implements MessageHandler<Reply, ClientState, Received
                 // Already delivered message
                 return null;
             }
-            store.addRemote(reply.getServerId(), reply.getValue());
+            store.addRemote(reply.getServerId(), reply);
             byte[] value = store.getStableReply(quorum);
             if (value != null) {
                 descriptors = Arrays.asList(new Received.Descriptor(value));
