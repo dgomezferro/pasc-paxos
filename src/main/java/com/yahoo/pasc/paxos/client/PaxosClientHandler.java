@@ -22,8 +22,10 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -159,6 +161,21 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         }
     }
 
+    public void close() {
+        if (timer != null)
+            timer.cancel();
+        if (resubmit != null)
+            resubmit.cancel();
+        for (Channel c : serverChannels) {
+            if (c != null) {
+                c.close();
+            }
+        }
+        if (connectionThread != null) {
+            connectionThread.interrupt();
+        }
+    }
+
     @Override
     public synchronized void submitControlMessage(byte[] controlMessage) {
         ControlMessage cm = new ControlMessage(clientId, controlMessage);
@@ -167,9 +184,11 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     }
 
     private static final String ELECTION_PATH = "/pasc_election";
+    private Thread connectionThread;
 
     public void start() throws KeeperException, InterruptedException {
-        new Thread(new ConnectionThread()).start();
+        connectionThread = new Thread(new ConnectionThread());
+        connectionThread.start();
     }
 
     @Override
@@ -337,6 +356,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         private volatile boolean exit = false;
         private int attempts = 0;
         private int timeout = 1000;
+        private Set<ClientBootstrap> bootstraps = new HashSet<ClientBootstrap>();
 
         @Override
         public void run() {
@@ -352,6 +372,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
                     final int id = toConnect.take();
 
                     ClientBootstrap bootstrap = new ClientBootstrap(channelFactory);
+                    bootstraps.add(bootstrap);
 
                     // Set up the pipeline factory.
                     bootstrap.setPipelineFactory(channelPipelineFactory);
@@ -377,13 +398,16 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
                     });
                 }
             } catch (InterruptedException e) {
-                // ignore
+                close();
             }
         }
 
         @Override
-        public void close() throws IOException {
+        public void close() {
             exit = true;
+            for (ClientBootstrap cb : bootstraps) {
+                cb.releaseExternalResources();
+            }
         }
     }
 

@@ -20,4 +20,6 @@ public interface PaxosInterface {
     public void submitNewRequest(byte[] request);
 
     public void submitControlMessage(byte[] controlMessage);
+    
+    public void close();
 }
