@@ -18,7 +18,6 @@ package com.yahoo.pasc.paxos.server;
 
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -35,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.messages.Accept;
-import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.DigestToSM;
 import com.yahoo.pasc.paxos.messages.Execute;
@@ -44,7 +42,6 @@ import com.yahoo.pasc.paxos.messages.LeadershipChange;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.PreReply;
-import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.state.PaxosState;
 import com.yahoo.pasc.paxos.statemachine.ControlHandler;
 import com.yahoo.pasc.paxos.statemachine.Response;
@@ -87,7 +84,7 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
         PaxosMessage message = (PaxosMessage) e.getMessage();
         if (LOG.isTraceEnabled()) {
-            LOG.trace("Message received {}", message);
+            LOG.trace("[{}] Message received {}", serverConnection.getId(), message);
         }
         if (message instanceof ControlMessage) {
             if (controlHandler != null) {
@@ -120,7 +117,7 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
                 return;
             List<Message> toForward = new ArrayList<Message>();
             if (LOG.isTraceEnabled()) {
-                LOG.trace("Output messages {}", responses);
+                LOG.trace("[{}] Output messages {}", serverConnection.getId(), responses);
             }
             for (Message m : responses) {
                 if (m instanceof Execute) {
@@ -149,6 +146,9 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
                     toForward.add(m);
                 }
             }
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("[{}] Forwarding messages {}", serverConnection.getId(), toForward);
+            }
             serverConnection.forward(toForward);
         } finally {
             hits[type.ordinal()]++;
@@ -175,25 +175,25 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
         leadershipQueue.add(new LeadershipChange(false));
     }
 
-    private class ThroughputMonitor implements Runnable {
-        @Override
-        public void run() {
-            MessageType values [] = MessageType.values();
-            while (true) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    return;
-                }
-                System.out.format("Memory usage: %d bytes\n", Runtime.getRuntime().totalMemory()
-                        - Runtime.getRuntime().freeMemory());
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < values.length; ++i) {
-                    sb.append(values[i].name()).append('\t').append(time[i] / (double) hits[i]).append('\t');
-                }
-                System.out.println(sb);
-                System.out.println("MSGS/BATCH " + (requests / (double)accepts));
-            }
-        }
-    }
+//    private class ThroughputMonitor implements Runnable {
+//        @Override
+//        public void run() {
+//            MessageType values [] = MessageType.values();
+//            while (true) {
+//                try {
+//                    Thread.sleep(1000);
+//                } catch (InterruptedException e) {
+//                    return;
+//                }
+//                System.out.format("Memory usage: %d bytes\n", Runtime.getRuntime().totalMemory()
+//                        - Runtime.getRuntime().freeMemory());
+//                StringBuilder sb = new StringBuilder();
+//                for (int i = 0; i < values.length; ++i) {
+//                    sb.append(values[i].name()).append('\t').append(time[i] / (double) hits[i]).append('\t');
+//                }
+//                System.out.println(sb);
+//                System.out.println("MSGS/BATCH " + (requests / (double)accepts));
+//            }
+//        }
+//    }
 }

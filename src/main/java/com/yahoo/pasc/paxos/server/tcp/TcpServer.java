@@ -53,7 +53,6 @@ import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.Barrier;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
 import com.yahoo.pasc.paxos.messages.Bye;
-import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
 import com.yahoo.pasc.paxos.messages.ServerHello;
@@ -293,5 +292,10 @@ public class TcpServer implements ServerConnection {
         serverChannel.close();
         serverChannels.close();
         indexedServerChannels.clear();
+    }
+
+    @Override
+    public int getId() {
+        return id;
     }
 }

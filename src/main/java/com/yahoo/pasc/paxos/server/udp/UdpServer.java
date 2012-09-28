@@ -150,4 +150,9 @@ public class UdpServer implements ServerConnection {
     public void close() throws IOException {
         // TODO Auto-generated method stub
     }
+    @Override
+    public int getId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

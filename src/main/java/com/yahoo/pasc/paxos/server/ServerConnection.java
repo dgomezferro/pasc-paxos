@@ -31,4 +31,6 @@ public interface ServerConnection {
     public void run() throws IOException;
 
     public void close() throws IOException;
+
+    public int getId();
 }
