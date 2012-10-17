@@ -63,6 +63,7 @@ import com.yahoo.pasc.paxos.client.messages.Timeout;
 import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
+import com.yahoo.pasc.paxos.messages.InvalidMessage;
 import com.yahoo.pasc.paxos.messages.Request;
 import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.messages.serialization.ManualDecoder;
@@ -287,6 +288,9 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     @Override
     public synchronized void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
         Object message = e.getMessage();
+        if (message instanceof InvalidMessage) {
+            return;
+        }
         if (message instanceof ServerHello) {
             ServerHello hello = (ServerHello) e.getMessage();
             serverChannels[hello.getServerId()] = e.getChannel();

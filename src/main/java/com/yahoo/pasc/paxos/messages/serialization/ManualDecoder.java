@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.PascRuntime;
-import com.yahoo.pasc.exceptions.InputMessageException;
 import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
@@ -35,6 +34,7 @@ import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
+import com.yahoo.pasc.paxos.messages.InvalidMessage;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.Prepare;
@@ -71,7 +71,7 @@ public class ManualDecoder extends FrameDecoder {
 
         int length = buf.readInt();
         length -= 4; // length has already been read
-        
+
         if (buf.readableBytes() < length) {
             buf.resetReaderIndex();
             return null;
@@ -87,7 +87,6 @@ public class ManualDecoder extends FrameDecoder {
         byte[] bytearray = new byte[length];
         buf.markReaderIndex();
         buf.readBytes(bytearray, 0, length);
-        buf.resetReaderIndex();
         Checksum crc32 = CRC32Pool.getCRC32();
         crc32.reset();
 
@@ -103,9 +102,12 @@ public class ManualDecoder extends FrameDecoder {
         if (result != crc) {
             byte b = buf.readByte();
             MessageType type = MessageType.values()[b];
-            LOG.error("Invalid CRC for {}. Expected {} Actual {}", new Object[] {type, crc, result});
-            throw new InputMessageException("Invalid CRC", null, null);
+            LOG.error("Invalid CRC for {}. Expected {} Actual {}", new Object[] { type, crc, result });
+            return new InvalidMessage();
         }
+
+        // If CRC matches reset reader index
+        buf.resetReaderIndex();
 
         CRC32Pool.pushCRC32(crc32);
 
@@ -248,7 +250,7 @@ public class ManualDecoder extends FrameDecoder {
             int serverId = buf.readInt();
             long ts = buf.readLong();
             len = buf.readInt();
-            byte [] message = new byte [len];
+            byte[] message = new byte[len];
             buf.readBytes(message);
             AsyncMessage am = new AsyncMessage(clientId, serverId, ts, message);
             am.setCRC(crc);
@@ -257,15 +259,17 @@ public class ManualDecoder extends FrameDecoder {
         case CONTROL: {
             int clientId = buf.readInt();
             len = buf.readInt();
-            byte [] message = new byte [len];
+            byte[] message = new byte[len];
             buf.readBytes(message);
             ControlMessage cm = new ControlMessage(clientId, message);
             cm.setCRC(crc);
             return cm;
         }
+        default: {
+            LOG.error("Unknown message type");
+            return new InvalidMessage();
         }
-        buf.resetReaderIndex();
-        throw new IllegalArgumentException("Unknown message type " + b + " " + type);
+        }
     }
 
 }

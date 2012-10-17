@@ -86,6 +86,9 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
         if (LOG.isTraceEnabled()) {
             LOG.trace("[{}] Message received {}", serverConnection.getId(), message);
         }
+        if (message instanceof InvalidMessage) {
+            return;
+        }
         if (message instanceof ControlMessage) {
             if (controlHandler != null) {
                 controlHandler.handleControlMessage((ControlMessage) message);
