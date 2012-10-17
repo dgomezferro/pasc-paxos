@@ -38,6 +38,7 @@ import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.DigestToSM;
 import com.yahoo.pasc.paxos.messages.Execute;
 import com.yahoo.pasc.paxos.messages.Hello;
+import com.yahoo.pasc.paxos.messages.InvalidMessage;
 import com.yahoo.pasc.paxos.messages.LeadershipChange;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
