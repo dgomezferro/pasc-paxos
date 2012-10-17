@@ -90,7 +90,7 @@ public class PaxosClient {
             int timeout         = line.hasOption('t') ? Integer.parseInt(line.getOptionValue('t')) : 5000;
             int clients         = line.hasOption('c') ? Integer.parseInt(line.getOptionValue('c')) : 1;
             int requestSize     = line.hasOption('r') ? Integer.parseInt(line.getOptionValue('r')) : 0;
-            int inlineThreshold = line.hasOption('n') ? Integer.parseInt(line.getOptionValue('n')) : 10;
+            int inlineThreshold = line.hasOption('n') ? Integer.parseInt(line.getOptionValue('n')) : 1000;
             int asynSize        = line.hasOption('y') ? Integer.parseInt(line.getOptionValue('y')) : 100;
             boolean protection  = line.hasOption('a');
 

@@ -102,7 +102,7 @@ public class PaxosServer {
             int maxInstances         = line.hasOption('m') ? Integer.parseInt(line.getOptionValue('m')) : 16*1024;
             int congestionWindow     = line.hasOption('w') ? Integer.parseInt(line.getOptionValue('w')) : 1;
             int digests              = line.hasOption('d') ? Integer.parseInt(line.getOptionValue('d')) : 16;
-            int inlineThreshold      = line.hasOption('n') ? Integer.parseInt(line.getOptionValue('n')) : 10;
+            int inlineThreshold      = line.hasOption('n') ? Integer.parseInt(line.getOptionValue('n')) : 1000;
             boolean protection       = line.hasOption('a');
             boolean udp              = line.hasOption('u');
             boolean twoStages        = line.hasOption('2');
