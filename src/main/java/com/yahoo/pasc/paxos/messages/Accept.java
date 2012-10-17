@@ -144,7 +144,7 @@ public class Accept extends PaxosMessage implements Serializable, CloneableDeep<
         }
         return String.format("{Accept %s sent from %d with ballot %d for iid %d with requests %s {%s}}",
                 acceptStr, senderId, instance.getBallot(), instance.getIid(), 
-                Arrays.toString(requests), super.toString());
+                Arrays.deepToString(requests), super.toString());
     }
 
     public Accept cloneDeep() {
