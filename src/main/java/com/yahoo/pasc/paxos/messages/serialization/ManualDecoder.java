@@ -100,8 +100,11 @@ public class ManualDecoder extends FrameDecoder {
         }
 
         if (result != crc) {
-            byte b = buf.readByte();
-            MessageType type = MessageType.values()[b];
+            MessageType type = null;
+            if (length > 0) {
+                byte b = bytearray[0];
+                type = MessageType.values()[b];
+            }
             LOG.error("Invalid CRC for {}. Expected {} Actual {}", new Object[] { type, crc, result });
             return new InvalidMessage();
         }
