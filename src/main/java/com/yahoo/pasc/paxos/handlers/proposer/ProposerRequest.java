@@ -75,11 +75,13 @@ public class ProposerRequest extends PaxosHandler<Request> {
                 descriptors = new ArrayList<PaxosDescriptor>(4);
                 AcceptorAccept.checkAccept(request.getIid(), state, descriptors);
             } else {
-                LOG.error("Got a resubmitted request or too new request. "
+                LOG.warn("Got a resubmitted request or too new request. "
                                 + "FirstDigestID: {} CurrentId: {} RequestId: {} FirstIid: {} MsgClient: {} MsgTS: {} CacheTS: {} ",
                         new Object[] { state.getFirstDigestId(), state.getCurrIid(), request.getIid(),
                                 state.getFirstInstanceId(), clientId, timestamp, repTs });
-                return null;
+
+                return state.getIsLeader() ? Arrays.<PaxosDescriptor> asList(new Accept.Descriptor(requestIid),
+                        new Accepted.Descriptor(requestIid)) : null;
             }
         }
 
@@ -92,6 +94,7 @@ public class ProposerRequest extends PaxosHandler<Request> {
                 return null;
             }
 
+            request.setIid(iid);
             int bufSize = state.getInstanceBufferSize(iid);
             state.setClientTimestampBufferElem(new IndexIid(bufSize, iid), ct);
             bufSize++;
