@@ -418,8 +418,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-        System.err.println("Unexpected exception from downstream: " + e.getCause());
-        e.getCause().printStackTrace();
+        LOG.warn("Unexpected exception: " + e.getCause());
         e.getChannel().close();
     }
 
