@@ -94,7 +94,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
      * 
      * @throws IOException
      */
-    public PaxosClientHandler(PascRuntime<ClientState> runtime, ClientInterface clientInterface, String[] servers,
+    public PaxosClientHandler(final PascRuntime<ClientState> runtime, ClientInterface clientInterface, String[] servers,
             int clientId, int clients, int timeout, String zkConnection, final ExecutionHandler executor)
             throws IOException {
         this.clientId = clientId;
@@ -106,7 +106,8 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         this.clientInterface.setInterface(this);
         this.channelPipelineFactory = new ChannelPipelineFactory() {
             public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(new ManualEncoder(), new ManualDecoder(), executor, PaxosClientHandler.this);
+                return Channels.pipeline(new ManualEncoder(), new ManualDecoder(runtime.isProtected()), executor,
+                        PaxosClientHandler.this);
             }
         };
         this.servers = servers;

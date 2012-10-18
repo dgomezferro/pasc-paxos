@@ -54,7 +54,7 @@ public class UdpServer implements ServerConnection {
 
     public UdpServer(PascRuntime<PaxosState> runtime, String servers[], String clients[], int port, int threads, int id) {
         this.channelFactory = new NioDatagramChannelFactory(Executors.newCachedThreadPool());
-        this.channelPipelineFactory = new PipelineFactory(null, null, true);
+        this.channelPipelineFactory = new PipelineFactory(null, null, true, true);
         this.servers = servers;
         this.clients = clients;
         this.port = port;

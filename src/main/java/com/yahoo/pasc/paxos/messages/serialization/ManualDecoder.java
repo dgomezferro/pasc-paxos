@@ -50,6 +50,13 @@ public class ManualDecoder extends FrameDecoder {
 
     private static final Logger LOG = LoggerFactory.getLogger(ManualDecoder.class);
 
+    private boolean protection = false;
+
+    public ManualDecoder(boolean protection) {
+        super();
+        this.protection = protection;
+    }
+
     protected Object decode(ChannelHandlerContext ctx, Channel channel, ChannelBuffer buf) throws Exception {
         Object result = decode2(ctx, channel, buf);
         if (result != null) {
@@ -84,35 +91,9 @@ public class ManualDecoder extends FrameDecoder {
             LOG.warn("Length is 0.");
         }
 
-        byte[] bytearray = new byte[length];
-        buf.markReaderIndex();
-        buf.readBytes(bytearray, 0, length);
-        Checksum crc32 = CRC32Pool.getCRC32();
-        crc32.reset();
-
-        crc32.update(bytearray, 0, bytearray.length);
-
-        long result = crc32.getValue();
-
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Decoding message with bytes {} computed CRC {} received CRC {}", new Object[] { bytearray,
-                    result, crc });
-        }
-
-        if (result != crc) {
-            MessageType type = null;
-            if (length > 0) {
-                byte b = bytearray[0];
-                type = MessageType.values()[b];
-            }
-            LOG.error("Invalid CRC for {}. Expected {} Actual {}", new Object[] { type, crc, result });
+        if (protection && !checkCRC(buf, length, crc)) {
             return new InvalidMessage();
         }
-
-        // If CRC matches reset reader index
-        buf.resetReaderIndex();
-
-        CRC32Pool.pushCRC32(crc32);
 
         byte b = buf.readByte();
         int len;
@@ -273,6 +254,39 @@ public class ManualDecoder extends FrameDecoder {
             return new InvalidMessage();
         }
         }
+    }
+
+    private boolean checkCRC(ChannelBuffer buf, int length, long crc) {
+        byte[] bytearray = new byte[length];
+        buf.markReaderIndex();
+        buf.readBytes(bytearray, 0, length);
+        Checksum crc32 = CRC32Pool.getCRC32();
+        crc32.reset();
+
+        crc32.update(bytearray, 0, bytearray.length);
+
+        long result = crc32.getValue();
+
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Decoding message with bytes {} computed CRC {} received CRC {}", new Object[] { bytearray,
+                    result, crc });
+        }
+
+        if (result != crc) {
+            MessageType type = null;
+            if (length > 0) {
+                byte b = bytearray[0];
+                type = MessageType.values()[b];
+            }
+            LOG.error("Invalid CRC for {}. Expected {} Actual {}", new Object[] { type, crc, result });
+            return false;
+        }
+
+        // If CRC matches reset reader index
+        buf.resetReaderIndex();
+
+        CRC32Pool.pushCRC32(crc32);
+        return true;
     }
 
 }

@@ -116,7 +116,7 @@ public class TcpServer implements ServerConnection {
                     }
                 }));
         this.channelHandler = new ServerHandler(runtime, sm, controlHandler, this);
-        this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages);
+        this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages, runtime.isProtected());
         this.leaderElection = new LeaderElection(zk, id, this.channelHandler);
         this.barrier = new Barrier(new ZooKeeper(zk, 2000, leaderElection), "/paxos_srv_barrier", "" + id,
                 servers.length);

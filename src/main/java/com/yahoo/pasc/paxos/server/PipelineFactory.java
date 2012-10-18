@@ -30,6 +30,7 @@ public class PipelineFactory implements ChannelPipelineFactory {
 
     private ExecutionHandler executionHandler;
     private boolean twoStages;
+    private boolean protection;
 
     /**
      * Constructor
@@ -42,16 +43,17 @@ public class PipelineFactory implements ChannelPipelineFactory {
      * @param shared
      *            The shared state among handlers
      */
-    public PipelineFactory(ChannelHandler handler, ExecutionHandler executionHandler, boolean twoStages) {
+    public PipelineFactory(ChannelHandler handler, ExecutionHandler executionHandler, boolean twoStages, boolean protection) {
         super();
         this.executionHandler = executionHandler;
         this.channelHandler = handler;
         this.twoStages = twoStages;
+        this.protection = protection;
     }
 
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline pipeline = Channels.pipeline();
-        pipeline.addLast("decoder", new ManualDecoder());
+        pipeline.addLast("decoder", new ManualDecoder(protection));
         if (twoStages) {
             pipeline.addLast("executor", executionHandler);
         }
