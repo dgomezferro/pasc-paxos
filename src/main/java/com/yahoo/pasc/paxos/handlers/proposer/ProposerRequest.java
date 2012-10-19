@@ -80,8 +80,9 @@ public class ProposerRequest extends PaxosHandler<Request> {
                         new Object[] { state.getFirstDigestId(), state.getCurrIid(), request.getIid(),
                                 state.getFirstInstanceId(), clientId, timestamp, repTs });
 
-                return state.getIsLeader() ? Arrays.<PaxosDescriptor> asList(new Accept.Descriptor(requestIid),
-                        new Accepted.Descriptor(requestIid)) : null;
+                return state.getIsLeader() && state.getCompletedPhaseOne() ?
+                        Arrays.<PaxosDescriptor> asList(new Accept.Descriptor(requestIid), new Accepted.Descriptor(requestIid)) :
+                        null;
             }
         }
 

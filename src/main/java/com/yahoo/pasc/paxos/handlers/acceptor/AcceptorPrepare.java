@@ -26,11 +26,13 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pasc.Message;
 import com.yahoo.pasc.paxos.handlers.PaxosHandler;
+import com.yahoo.pasc.paxos.handlers.learner.Learner;
 import com.yahoo.pasc.paxos.messages.PaxosDescriptor;
 import com.yahoo.pasc.paxos.messages.Prepare;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.state.InstanceRecord;
 import com.yahoo.pasc.paxos.state.PaxosState;
+import com.yahoo.pasc.paxos.state.IidAcceptorsCounts;
 
 public class AcceptorPrepare extends PaxosHandler<Prepare> {
 
@@ -62,19 +64,19 @@ public class AcceptorPrepare extends PaxosHandler<Prepare> {
         // send learned (executed) requests
         LongArrayList learnedReqs = new LongArrayList();
         long currIid = Math.max(minIid + 1, maxForgotten + 1);
-        while (currIid <= maxExecuted) {
+        while (currIid < minIid + state.getMaxInstances()) {
+            InstanceRecord instance = state.getInstancesElement(currIid);
+            IidAcceptorsCounts acceptors = state.getAcceptedElement(currIid);
             // checks that the iid is correct and that the instance is "fully" accepted, i.e., it has all requests
-            if (state.getInstancesIid(currIid) == currIid && state.getIsAcceptedElement(currIid)) {
+            if (instance != null && instance.getIid() == currIid && acceptors != null && acceptors.isAccepted()) {
                 LOG.trace("Adding learned req with iid {}", currIid);
                 learnedReqs.add(currIid);
-            } else {
-                LOG.trace("Not adding learned for iid {}. Stored iid {} learned {} ",
-                        new Object[] { currIid, state.getInstancesIid(currIid), state.getIsAcceptedElement(currIid) });
             }
             currIid++;
         }
 
         // send accepted requests
+        currIid = Math.max(minIid + 1, maxForgotten + 1);
         LongArrayList acceptedReqs = new LongArrayList();
         while (currIid < minIid + state.getMaxInstances()) {
             InstanceRecord instance = state.getInstancesElement(currIid);
