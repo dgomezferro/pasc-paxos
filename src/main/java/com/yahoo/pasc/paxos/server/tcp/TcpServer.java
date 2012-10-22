@@ -221,7 +221,9 @@ public class TcpServer implements ServerConnection {
         if (clientChannels.containsKey(clientId)) {
             Bye bye = new Bye(clientId, id);
             bye.storeReplica(bye);
-            forward(Arrays.<Message> asList(bye));
+            embedder.offer(bye);
+            ChannelBuffer encoded = embedder.poll();
+            channel.write(encoded);
         } else {
             LOG.debug("Adding client " + clientId + " " + channel);
             clientChannels.put(clientId, channel);
