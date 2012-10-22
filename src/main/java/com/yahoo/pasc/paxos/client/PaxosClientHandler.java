@@ -95,9 +95,8 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
      * @throws IOException
      */
     public PaxosClientHandler(final PascRuntime<ClientState> runtime, ClientInterface clientInterface, String[] servers,
-            int clientId, int clients, int timeout, String zkConnection, final ExecutionHandler executor)
+            int clients, int timeout, String zkConnection, final ExecutionHandler executor)
             throws IOException {
-        this.clientId = clientId;
         this.clients = clients;
         this.timeout = timeout;
         this.zk = new ZooKeeper(zkConnection, 5000, this);

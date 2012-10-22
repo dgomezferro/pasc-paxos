@@ -39,8 +39,7 @@ public class ClientState implements ProcessState {
     private int from;
     ReplyStore replyStore;
 
-    public ClientState(int clientId, int servers, int quorum, int inlineThreshold, int asyncMessages) {
-        this.clientId = clientId;
+    public ClientState(int servers, int quorum, int inlineThreshold, int asyncMessages) {
         this.servers = servers;
         this.quorum = quorum;
         this.inlineThreshold = inlineThreshold;

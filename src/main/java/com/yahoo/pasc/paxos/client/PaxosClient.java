@@ -111,8 +111,7 @@ public class PaxosClient {
             Random rnd = new Random();
             
             for (int i = 0; i < buffer; ++ i) {
-                int clientId = clientIds++;
-                ClientState clientState = new ClientState(clientId, servers, quorum, inlineThreshold, asynSize);
+                ClientState clientState = new ClientState(servers, quorum, inlineThreshold, asynSize);
                 final PascRuntime<ClientState> runtime = new PascRuntime<ClientState>(protection);
                 runtime.setState(clientState);
                 runtime.addHandler(ServerHello.class, shello);
@@ -124,7 +123,7 @@ public class PaxosClient {
                 runtime.addHandler(Hello.class, hello);
                 
                 final PaxosClientHandler handler = new PaxosClientHandler(runtime, new SimpleClient(requestSize), 
-                        serverHosts, clientId, clients, timeout, zkConnection, executor);
+                        serverHosts, clients, timeout, zkConnection, executor);
                 
                 if (line.hasOption('w')) handler.setWarmup(Integer.parseInt(line.getOptionValue('w')));
                 if (line.hasOption('m')) handler.setMeasuringTime(Integer.parseInt(line.getOptionValue('m')));
