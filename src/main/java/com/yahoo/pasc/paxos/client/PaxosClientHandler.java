@@ -181,7 +181,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     public synchronized void submitControlMessage(byte[] controlMessage) {
         ControlMessage cm = new ControlMessage(clientId, controlMessage);
         cm.storeReplica(cm);
-        send(cm);
+        sendAll(cm);
     }
 
     private static final String ELECTION_PATH = "/pasc_election";
