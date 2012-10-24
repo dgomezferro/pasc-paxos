@@ -48,6 +48,7 @@ public class PaxosState implements ProcessState {
         this.maxDigests = maxDigests;
         this.digestStore = new DigestStore[maxDigests];
         this.maxExecuted = -1;
+        this.leaderId = -1;
         this.replyCache = new TimestampReply[MAX_CLIENTS];
         inProgress = new long[MAX_CLIENTS];
         Arrays.fill(inProgress, -1);
@@ -63,6 +64,7 @@ public class PaxosState implements ProcessState {
 
     // All
     int serverId;
+    int leaderId;
     int quorum;
     int servers;
     int bufferSize;
@@ -271,6 +273,14 @@ public class PaxosState implements ProcessState {
 
     public void setServerId(int serverId) {
         this.serverId = serverId;
+    }
+
+    public int getLeaderId() {
+        return leaderId;
+    }
+
+    public void setLeaderId(int leaderId) {
+        this.leaderId = leaderId;
     }
 
     public int getQuorum() {

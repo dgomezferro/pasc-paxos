@@ -35,6 +35,7 @@ import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
 import com.yahoo.pasc.paxos.messages.InvalidMessage;
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.Prepare;
@@ -173,6 +174,11 @@ public class ManualDecoder extends FrameDecoder {
             Hello h = new Hello(buf.readInt());
             h.setCRC(crc);
             return h;
+        }
+        case LEADER: {
+            Leader l = new Leader(buf.readInt());
+            l.setCRC(crc);
+            return l;
         }
         case SERVERHELLO: {
             ServerHello h = new ServerHello(buf.readInt(), buf.readInt());

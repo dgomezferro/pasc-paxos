@@ -39,7 +39,7 @@ import com.yahoo.pasc.paxos.messages.Accept;
 import com.yahoo.pasc.paxos.messages.Accepted;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
-import com.yahoo.pasc.paxos.messages.LeadershipChange;
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.PreReply;
 import com.yahoo.pasc.paxos.messages.Prepare;
 import com.yahoo.pasc.paxos.messages.Prepared;
@@ -135,7 +135,7 @@ public class PaxosServer {
             runtime.addHandler(InlineRequest.class, new ProposerRequest());
             runtime.addHandler(Digest.class, new DigestHandler());
             runtime.addHandler(PreReply.class, new LearnerPreReply());
-            runtime.addHandler(LeadershipChange.class, new LeadershipHandler());
+            runtime.addHandler(Leader.class, new LeadershipHandler());
 
             if (udp) {
                 new UdpServer(runtime, serverAddresses, null, port, threads, serverId).run();

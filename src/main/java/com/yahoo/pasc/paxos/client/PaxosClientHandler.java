@@ -64,12 +64,13 @@ import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InlineRequest;
 import com.yahoo.pasc.paxos.messages.InvalidMessage;
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.Request;
 import com.yahoo.pasc.paxos.messages.ServerHello;
 import com.yahoo.pasc.paxos.messages.serialization.ManualDecoder;
 import com.yahoo.pasc.paxos.messages.serialization.ManualEncoder;
 
-public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements PaxosInterface, Watcher {
+public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements PaxosInterface {
 
     private static final Logger LOG = LoggerFactory.getLogger(PaxosClientHandler.class);
     private static final int MAX_CLIENTS = 4096;
@@ -77,7 +78,6 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     private int clientId;
     private int clients;
     private int timeout;
-    private ZooKeeper zk;
     private int warmup = 20000;
     private long measuringTime = 30000;
     private String[] servers;
@@ -99,7 +99,6 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
             throws IOException {
         this.clients = clients;
         this.timeout = timeout;
-        this.zk = new ZooKeeper(zkConnection, 5000, this);
         this.runtime = runtime;
         this.clientInterface = clientInterface;
         this.clientInterface.setInterface(this);
@@ -192,42 +191,6 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         connectionThread.start();
     }
 
-    @Override
-    public void process(WatchedEvent event) {
-        switch (event.getType()) {
-        case NodeChildrenChanged:
-        case None:
-            break;
-        default:
-            return;
-        }
-        
-        if (event.getState() != Watcher.Event.KeeperState.SyncConnected) {
-            return;
-        }
-
-        try {
-            leader = getLeadership(zk.getChildren(ELECTION_PATH, this));
-        } catch (KeeperException e) {
-            leader = -1;
-        } catch (InterruptedException e) {
-            leader = -1;
-        }
-    }
-
-    private int getLeadership(List<String> children) {
-        List<Integer> ids = new ArrayList<Integer>();
-        for (String id : children) {
-            ids.add(Integer.parseInt(id));
-        }
-        Collections.sort(ids);
-
-        if (ids.isEmpty())
-            return -1;
-
-        return ids.get(0);
-    }
-
     private void send(Message m) {
         if (leader == -1) {
             sendAll(m);
@@ -290,6 +253,15 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         Object message = e.getMessage();
         if (message instanceof InvalidMessage) {
             return;
+        }
+        if (message instanceof Leader) {
+            Leader l = (Leader) e.getMessage();
+            int newLeader = l.getLeader();
+            if (newLeader >= 0 && newLeader < servers.length) {
+                leader = newLeader;
+            } else {
+                leader = -1;
+            }
         }
         if (message instanceof ServerHello) {
             ServerHello hello = (ServerHello) e.getMessage();
@@ -450,71 +422,4 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
         this.period = period;
     }
 
-    class ThroughputMonitor implements Runnable {
-        private Barrier barrier;
-
-        public ThroughputMonitor() {
-            try {
-                LOG.info("Starting monitor " + clientId + " of " + clients);
-                barrier = new Barrier(zk, "/paxos_barrier", "" + clientId, clients);
-            } catch (KeeperException e) {
-                LOG.error("Couldnt create barrier", e);
-            } catch (IOException e) {
-                LOG.error("Couldnt create barrier", e);
-            }
-        }
-
-        @Override
-        public void run() {
-            try {
-                try {
-                    Thread.sleep(warmup);
-                } catch (InterruptedException ignore) {
-                }
-                LOG.info("[{}] Entering barrier", clientId);
-
-                barrier.enter();
-                LOG.info("[{}] Entered barrier", clientId);
-                long startMessagges = messagesReceived;
-                long startTime = System.currentTimeMillis();
-                measureLatency = true;
-                try {
-                    Thread.sleep(getMeasuringTime());
-                } catch (InterruptedException ignore) {
-                }
-                LOG.info("[{}] Leaving barrier", clientId);
-                try {
-                    barrier.leave();
-                } catch (Exception e) {
-                    LOG.error("Couldn't exit barrier, exiting", e);
-                    return;
-                }
-                System.out.println(String.format("Throughput: %8.8f m/s", (messagesReceived - startMessagges)
-                        / ((double) (System.currentTimeMillis() - startTime) / 1000)));
-                System.out
-                        .println(String.format("Latency: %4.4f ms", (totalTime / (double) latencyReceived) / 1000000));
-
-                barrier.close();
-
-                for (Channel c : serverChannels) {
-                    if (c != null) {
-                        c.close();
-                    }
-                }
-
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-
-                System.exit(0);
-            } catch (KeeperException e) {
-                LOG.error("Couldn't measure throughput", e);
-            } catch (InterruptedException e) {
-                LOG.error("Couldn't measure throughput", e);
-            }
-            System.exit(-1);
-        }
-    }
 }

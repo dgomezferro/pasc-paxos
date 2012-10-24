@@ -16,28 +16,43 @@
 
 package com.yahoo.pasc.paxos.handlers;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
-import com.yahoo.pasc.Message;
-import com.yahoo.pasc.paxos.messages.LeadershipChange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.PaxosDescriptor;
 import com.yahoo.pasc.paxos.messages.Prepare;
 import com.yahoo.pasc.paxos.state.PaxosState;
 
-public class LeadershipHandler extends PaxosHandler<LeadershipChange> {
+public class LeadershipHandler extends PaxosHandler<Leader> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(LeadershipHandler.class);
 
     @Override
-    public List<PaxosDescriptor> processMessage(LeadershipChange lc, PaxosState state) {
-        List<PaxosDescriptor> descriptors = null;
-        if (lc.isLeader()) {
-            int ballot = generateBallot(state);
-            state.setBallotProposer(ballot);
-            descriptors = Arrays.<PaxosDescriptor>asList(new Prepare(state.getServerId(), ballot, state.getMaxExecuted()));
+    public List<PaxosDescriptor> processMessage(Leader l, PaxosState state) {
+        List<PaxosDescriptor> descriptors = new ArrayList<PaxosDescriptor>();
+        LOG.debug("[" + state.getServerId() + "] Current leader " + state.getLeaderId() + " new leader "
+                + l.getLeader());
+        if (l.getLeader() == state.getLeaderId()) {
+            // no change
+            return null;
         }
 
-        state.setIsLeader(lc.isLeader());
+        boolean newLeader = l.getLeader() == state.getServerId();
+
+        if (newLeader) {
+            int ballot = generateBallot(state);
+            state.setBallotProposer(ballot);
+            descriptors.add(new Prepare(state.getServerId(), ballot, state.getMaxExecuted()));
+        }
+
+        state.setIsLeader(newLeader);
+        state.setLeaderId(l.getLeader());
         state.setCompletedPhaseOne(false);
+        descriptors.add(new Leader(l.getLeader()));
 
         return descriptors;
     }

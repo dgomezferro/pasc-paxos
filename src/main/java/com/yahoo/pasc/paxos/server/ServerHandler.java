@@ -39,7 +39,7 @@ import com.yahoo.pasc.paxos.messages.DigestToSM;
 import com.yahoo.pasc.paxos.messages.Execute;
 import com.yahoo.pasc.paxos.messages.Hello;
 import com.yahoo.pasc.paxos.messages.InvalidMessage;
-import com.yahoo.pasc.paxos.messages.LeadershipChange;
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.PreReply;
@@ -105,6 +105,7 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
             }
             LOG.warn("Handling leadership change {}", leadChange);
             List<Message> toForward = runtime.handleMessage(leadChange);
+            LOG.trace("[{}] Forwarding messages {}", serverConnection.getId(), toForward);
             serverConnection.forward(toForward);
         }
         try {
@@ -170,34 +171,9 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
     }
 
     @Override
-    public void acquireLeadership() {
-        leadershipQueue.add(new LeadershipChange(true));
+    public void setLeadership(int leader) {
+        Leader l = new Leader(leader);
+        l.storeReplica(l);
+        leadershipQueue.add(l);
     }
-
-    @Override
-    public void releaseLeadership() {
-        leadershipQueue.add(new LeadershipChange(false));
-    }
-
-//    private class ThroughputMonitor implements Runnable {
-//        @Override
-//        public void run() {
-//            MessageType values [] = MessageType.values();
-//            while (true) {
-//                try {
-//                    Thread.sleep(1000);
-//                } catch (InterruptedException e) {
-//                    return;
-//                }
-//                System.out.format("Memory usage: %d bytes\n", Runtime.getRuntime().totalMemory()
-//                        - Runtime.getRuntime().freeMemory());
-//                StringBuilder sb = new StringBuilder();
-//                for (int i = 0; i < values.length; ++i) {
-//                    sb.append(values[i].name()).append('\t').append(time[i] / (double) hits[i]).append('\t');
-//                }
-//                System.out.println(sb);
-//                System.out.println("MSGS/BATCH " + (requests / (double)accepts));
-//            }
-//        }
-//    }
 }

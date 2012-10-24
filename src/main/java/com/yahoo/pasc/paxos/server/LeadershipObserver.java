@@ -1,7 +1,5 @@
 package com.yahoo.pasc.paxos.server;
 
 public interface LeadershipObserver {
-    public void acquireLeadership();
-
-    public void releaseLeadership();
+    public void setLeadership(int leader);
 }

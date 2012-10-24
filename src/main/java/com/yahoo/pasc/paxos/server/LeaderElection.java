@@ -12,17 +12,20 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LeaderElection implements Watcher {
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(LeaderElection.class);
+
     private ZooKeeper zk;
     private int id;
     private static final String ELECTION_PATH = "/pasc_election";
-    private boolean leader = false;
     private LeadershipObserver observer;
     
-    public LeaderElection(String zk, int id, LeadershipObserver observer) throws IOException {
-        this.zk = new ZooKeeper(zk, 2000, this);
+    public LeaderElection(ZooKeeper zk, int id, LeadershipObserver observer) throws IOException {
+        this.zk = zk;
         this.id = id;
         this.observer = observer;
     }
@@ -50,19 +53,12 @@ public class LeaderElection implements Watcher {
         }
         Collections.sort(ids);
         
+        LOG.debug("Tentative leaders: " + ids);
+
         if (ids.isEmpty())
             return;
         
-        boolean chosenLeader = ids.get(0) == this.id;
-        
-        if (chosenLeader && !leader) {
-            leader = true;
-            observer.acquireLeadership();
-        }
-        if (!chosenLeader && leader) {
-            leader = false;
-            observer.releaseLeadership();
-        }
+        observer.setLeadership(ids.get(0));
     }
 
     @Override

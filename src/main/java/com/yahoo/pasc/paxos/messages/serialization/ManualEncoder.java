@@ -35,6 +35,7 @@ import com.yahoo.pasc.paxos.messages.Bye;
 import com.yahoo.pasc.paxos.messages.ControlMessage;
 import com.yahoo.pasc.paxos.messages.Digest;
 import com.yahoo.pasc.paxos.messages.Hello;
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.MessageType;
 import com.yahoo.pasc.paxos.messages.PaxosMessage;
 import com.yahoo.pasc.paxos.messages.Prepare;
@@ -115,6 +116,9 @@ public class ManualEncoder implements ChannelDownstreamHandler {
             result += 20;
             break;
         case HELLO:
+            result += 4;
+            break;
+        case LEADER:
             result += 4;
             break;
         case SERVERHELLO:
@@ -222,6 +226,11 @@ public class ManualEncoder implements ChannelDownstreamHandler {
         case HELLO: {
             Hello h = (Hello) msg;
             buffer.writeInt(h.getClientId());
+            break;
+        }
+        case LEADER: {
+            Leader l = (Leader) msg;
+            buffer.writeInt(l.getLeader());
             break;
         }
         case SERVERHELLO: {

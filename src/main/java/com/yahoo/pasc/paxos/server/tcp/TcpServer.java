@@ -24,12 +24,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -53,6 +56,7 @@ import com.yahoo.pasc.PascRuntime;
 import com.yahoo.pasc.paxos.Barrier;
 import com.yahoo.pasc.paxos.messages.AsyncMessage;
 import com.yahoo.pasc.paxos.messages.Bye;
+import com.yahoo.pasc.paxos.messages.Leader;
 import com.yahoo.pasc.paxos.messages.Prepared;
 import com.yahoo.pasc.paxos.messages.Reply;
 import com.yahoo.pasc.paxos.messages.ServerHello;
@@ -117,9 +121,20 @@ public class TcpServer implements ServerConnection {
                 }));
         this.channelHandler = new ServerHandler(runtime, sm, controlHandler, this);
         this.channelPipelineFactory = new PipelineFactory(channelHandler, executionHandler, twoStages, runtime.isProtected());
-        this.leaderElection = new LeaderElection(zk, id, this.channelHandler);
-        this.barrier = new Barrier(new ZooKeeper(zk, 2000, leaderElection), "/paxos_srv_barrier", "" + id,
-                servers.length);
+        final CountDownLatch latch = new CountDownLatch(1);
+        ZooKeeper zookeeper = new ZooKeeper(zk, 2000, new Watcher() {
+            @Override
+            public void process(WatchedEvent event) {
+                latch.countDown();
+            }
+        });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        this.leaderElection = new LeaderElection(zookeeper, id, this.channelHandler);
+        this.barrier = new Barrier(zookeeper, "/paxos_srv_barrier", "" + id, servers.length);
         this.servers = servers;
         this.port = port;
         this.threads = threads;
@@ -206,6 +221,14 @@ public class TcpServer implements ServerConnection {
                     LOG.trace("Sent {} to {}.", msg, receiver);
                 } else {
                     LOG.error("Server {} not yet connected. Cannot send prepared.", receiver);
+                }
+            } else if (msg instanceof Leader) {
+                embedder.offer(msg);
+                ChannelBuffer buf = embedder.poll();
+                for (Channel c : clientChannels.values()) {
+                    if (c != null) {
+                        c.write(buf);
+                    }
                 }
             } else {
                 embedder.offer(msg);
