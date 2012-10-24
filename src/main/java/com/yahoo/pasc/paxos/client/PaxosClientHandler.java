@@ -142,6 +142,13 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
 
     @Override
     public synchronized void submitNewRequest(byte[] request) {
+        while (!connected) {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         if (resubmit != null)
             resubmit.cancel();
         List<Message> messages = runtime.handleMessage(new Submit(request));
@@ -177,7 +184,14 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     }
 
     @Override
-    public synchronized void submitControlMessage(byte[] controlMessage) {
+    public synchronized void submitControlMessage(byte[] controlMessage) { 
+        while (!connected) {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         ControlMessage cm = new ControlMessage(clientId, controlMessage);
         cm.storeReplica(cm);
         sendAll(cm);
@@ -249,6 +263,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     private long messagesReceived = 0;
     private long lastReceived = 0;
     private long lastTime = 0;
+    private boolean connected = false;
 
     @Override
     public synchronized void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
@@ -280,6 +295,8 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
                 lastTime = System.nanoTime();
 
                 // new Thread(new ThroughputMonitor()).start();
+                connected  = true;
+                notifyAll();
 
                 clientInterface.connected();
             } else if (m instanceof Reconnect) {
