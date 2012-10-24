@@ -229,7 +229,9 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
     private Random random = new Random();
 
     private void generateClientId() {
-        clientId = random.nextInt(MAX_CLIENTS);
+        int newId = random.nextInt(MAX_CLIENTS);
+        LOG.warn("Previous id " + clientId + " newId " + newId);
+        clientId = newId;
     }
     
     private void sendHello(Channel c) {
@@ -262,6 +264,7 @@ public class PaxosClientHandler extends SimpleChannelUpstreamHandler implements 
             } else {
                 leader = -1;
             }
+            return;
         }
         if (message instanceof ServerHello) {
             ServerHello hello = (ServerHello) e.getMessage();
