@@ -302,10 +302,11 @@ public class TcpServer implements ServerConnection {
                     future = bootstrap.connect(new InetSocketAddress(hostname, port));
                     future.awaitUninterruptibly();
                 } catch (Exception e) {
-                    LOG.trace("Error during connection");
+                    LOG.trace("Error during connection to " + server);
                 }
             }
             serverChannels.add(future.getChannel());
+            LOG.trace("Connected to " + server);
             indexedServerChannels.put(id, future.getChannel());
             id++;
         }
