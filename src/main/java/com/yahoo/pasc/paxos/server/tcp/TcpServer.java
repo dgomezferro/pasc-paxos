@@ -143,6 +143,7 @@ public class TcpServer implements ServerConnection {
 
     public void run() {
         startServer();
+        setupConnections();
         leaderElection.start();
         try {
             barrier.enter();
@@ -153,7 +154,6 @@ public class TcpServer implements ServerConnection {
         } catch (InterruptedException e) {
             LOG.error("Couldn't initialize leaderElection", e);
         }
-        setupConnections();
     }
 
     @Override
