@@ -163,8 +163,7 @@ public class ServerHandler extends SimpleChannelHandler implements LeadershipObs
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-        if (!(e.getCause() instanceof ClosedChannelException))
-            e.getCause().printStackTrace();
+        LOG.warn("Unexpected exception: " + e.getCause());
 
         Channel ch = e.getChannel();
         ch.close();

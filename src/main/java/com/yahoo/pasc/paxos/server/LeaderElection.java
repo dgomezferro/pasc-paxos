@@ -35,14 +35,16 @@ public class LeaderElection implements Watcher {
             zk.create(ELECTION_PATH, null, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } catch (KeeperException.NoNodeException e) {
             // ignore
+        } catch (KeeperException.NodeExistsException e) {
+            // ignore
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.warn("Unexpected exception: " + e);
         }
         try {
             zk.create(ELECTION_PATH + "/" + id, null, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 //            checkLeadership(zk.getChildren(ELECTION_PATH, this));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.warn("Unexpected exception: " + e);
         }
     }
 
